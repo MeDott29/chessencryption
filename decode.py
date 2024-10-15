@@ -51,5 +51,6 @@ def decode(pgn_string: str, output_file_path: str):
         output_file.write(output_bytes)
 
     print(f"\nSuccessfully decoded PGN with 2 games ({round(time() - start_time, 3)}s).")
+    print(f"Decoded data size: {len(output_bytes)} bytes")
 
     return output_file_path

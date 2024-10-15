@@ -10,8 +10,7 @@ def encode(file_path: str):
     with open(file_path, "rb") as file:
         file_bytes = file.read()
 
-    # Record number of bits in file
-    file_bits_count = len(file_bytes) * 8
+    print(f"File size: {len(file_bytes)} bytes")
 
     print("\nEncoding file...")
 
@@ -26,7 +25,6 @@ def encode(file_path: str):
         for i in range(4):  # Process 2 bits at a time
             two_bits = (byte >> (6 - i*2)) & 0b11
             
-            # Encode 2 bits using moves on both boards
             legal_moves1 = list(board1.legal_moves)
             legal_moves2 = list(board2.legal_moves)
             
@@ -48,4 +46,7 @@ def encode(file_path: str):
     output.write("\n\n")
     game2.accept(exporter)
 
-    return output.getvalue()
+    pgn_string = output.getvalue()
+    print(f"PGN string length: {len(pgn_string)}")
+
+    return pgn_string

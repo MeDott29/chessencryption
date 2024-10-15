@@ -4,7 +4,7 @@ from decode import decode
 from chess import Board
 
 def arc_to_chess(arc_data):
-    pgn_string = ""
+    all_data = []
     for split in ["train", "test"]:
         for example in arc_data[split]:
             input_grid = example["input"]
@@ -15,15 +15,16 @@ def arc_to_chess(arc_data):
             flattened_output = [str(item) for sublist in output_grid for item in sublist]
             
             combined_grid = flattened_input + flattened_output
-            grid_string = "".join(combined_grid)
+            all_data.extend(combined_grid)
 
-            # Encode grid string to PGN
-            temp_file = "temp_grid.txt"
-            with open(temp_file, "w") as f:
-                f.write(grid_string)
-            pgn_string += encode(temp_file) + "\n\n"
+    grid_string = "".join(all_data)
 
-    return pgn_string
+    # Encode grid string to PGN
+    temp_file = "temp_grid.txt"
+    with open(temp_file, "w") as f:
+        f.write(grid_string)
+    
+    return encode(temp_file)
 
 
 def chess_to_arc(pgn_string, original_arc_data):
@@ -32,36 +33,34 @@ def chess_to_arc(pgn_string, original_arc_data):
     decode(pgn_string, temp_file)
 
     # Read the decoded content
-    with open(temp_file, "rb") as f:
-        decoded_bytes = f.read()
-        decoded_string = "".join([str(byte) for byte in decoded_bytes])
+    with open(temp_file, "r") as f:
+        decoded_string = f.read()
     
     print(f"Decoded string length: {len(decoded_string)}")
     
     # Process decoded string back into ARC format
-    decoded_data = {}
+    decoded_data = {"train": [], "test": []}
     for split in ["train", "test"]:
-        decoded_data[split] = []
-        for i in range(len(original_arc_data[split])):
-            input_len = len(original_arc_data[split][i]["input"][0]) * len(original_arc_data[split][i]["input"])
-            output_len = len(original_arc_data[split][i]["output"][0]) * len(original_arc_data[split][i]["output"])
+        for example in original_arc_data[split]:
+            input_len = len(example["input"][0]) * len(example["input"])
+            output_len = len(example["output"][0]) * len(example["output"])
             total_len = input_len + output_len
 
             if len(decoded_string) < total_len:
-                print(f"Warning: Decoded string is shorter than expected for {split} example {i}")
+                print(f"Warning: Decoded string is shorter than expected for {split} example")
                 print(f"Expected length: {total_len}, Actual length: {len(decoded_string)}")
                 break
 
-            grid_string = decoded_string[:total_len]  # Get the relevant substring
-            decoded_string = decoded_string[total_len:]  # Remove the extracted portion
+            grid_string = decoded_string[:total_len]
+            decoded_string = decoded_string[total_len:]
 
             input_grid = [
-                [int(grid_string[j]) for j in range(k * len(original_arc_data[split][i]["input"][0]), (k + 1) * len(original_arc_data[split][i]["input"][0]))]
-                for k in range(len(original_arc_data[split][i]["input"]))
+                [int(grid_string[j]) for j in range(k * len(example["input"][0]), (k + 1) * len(example["input"][0]))]
+                for k in range(len(example["input"]))
             ]
             output_grid = [
-                [int(grid_string[j]) for j in range(input_len + k * len(original_arc_data[split][i]["output"][0]), input_len + (k + 1) * len(original_arc_data[split][i]["output"][0]))]
-                for k in range(len(original_arc_data[split][i]["output"]))
+                [int(grid_string[j]) for j in range(input_len + k * len(example["output"][0]), input_len + (k + 1) * len(example["output"][0]))]
+                for k in range(len(example["output"]))
             ]
 
             decoded_data[split].append({"input": input_grid, "output": output_grid})
