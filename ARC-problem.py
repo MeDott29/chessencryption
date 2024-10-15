@@ -24,15 +24,15 @@ def arc_to_chess(arc_data):
     return pgn_string
 
 
-
 def chess_to_arc(pgn_string, original_arc_data):
     # Decode the PGN string back to a file
     temp_file = "temp_decoded.txt"
     decode(pgn_string, temp_file)
 
     # Read the decoded content
-    with open(temp_file, "r") as f:
-        decoded_string = f.read()
+    with open(temp_file, "rb") as f:
+        decoded_bytes = f.read()
+        decoded_string = "".join([str(byte) for byte in decoded_bytes])
     
     # Process decoded string back into ARC format
     decoded_data = {}
@@ -47,20 +47,37 @@ def chess_to_arc(pgn_string, original_arc_data):
             decoded_string = decoded_string[total_len:]  # Remove the extracted portion
 
             input_grid = [[int(grid_string[j]) for j in range(k * input_len, (k + 1) * input_len)] for k in range(1)]
-            output_grid = [[int(grid_string[j]) for j in range(input_len + k * output_len, input_len + (k+1) * output_len)] for k in range(1)]
+            output_grid = [[int(grid_string[j]) for j in range(input_len + k * output_len, input_len + (k + 1) * output_len)] for k in range(1)]
 
             decoded_data[split].append({"input": input_grid, "output": output_grid})
             
     return decoded_data
 
 
+def check_match(original_data, decoded_data):
+    mismatches = []
+    for split in ["train", "test"]:
+        for i, (original, decoded) in enumerate(zip(original_data[split], decoded_data[split])):
+            if original != decoded:
+                mismatches.append({"split": split, "index": i, "original": original, "decoded": decoded})
+    return mismatches
+
 
 # Example usage:
 arc_data = json.loads('{"train": [{"input": [[0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 0, 0, 0, 7]], "output": [[0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7]]}, {"input": [[0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 7]], "output": [[0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 7]]}, {"input": [[0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 0, 0, 0, 0, 0, 7, 0]], "output": [[0, 0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 0]]}], "test": [{"input": [[0, 0, 0, 0, 0, 5, 5, 5, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7]], "output": [[0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7]]}]}')
 
-
 pgn_string = arc_to_chess(arc_data)
 decoded_arc_data = chess_to_arc(pgn_string, arc_data)
 
+# Check if the decoded data matches the original data
+mismatches = check_match(arc_data, decoded_arc_data)
+if mismatches:
+    print("Match status: False")
+    for mismatch in mismatches:
+        print("Mismatch at split:", mismatch["split"], "index:", mismatch["index"])
+        print("Original:", json.dumps(mismatch["original"], indent=4))
+        print("Decoded:", json.dumps(mismatch["decoded"], indent=4))
+else:
+    print("Match status: True")
 
 print(json.dumps(decoded_arc_data, indent=4))
