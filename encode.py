@@ -2,7 +2,7 @@ from time import time
 from math import log2
 from chess import pgn, Board
 from util import to_binary_string
-
+import heapq
 
 ###
 ### Enter a file path
@@ -28,68 +28,53 @@ def encode(file_path: str):
 
     chess_board = Board()
 
-    while True:
-        legal_moves = list(chess_board.generate_legal_moves())
+    # create a dictionary to store the frequency of each byte
+    byte_frequency = {}
+    for byte in file_bytes:
+        if byte not in byte_frequency:
+            byte_frequency[byte] = 0
+        byte_frequency[byte] += 1
 
-        # assign moves a binary value based on its index
-        move_bits = {}
+    # create a heap to store the bytes with their frequencies
+    heap = []
+    for byte, frequency in byte_frequency.items():
+        heapq.heappush(heap, (-frequency, byte))
 
-        max_binary_length = min(
-            int(log2(
-                len(legal_moves)
-            )),
-            file_bits_count - file_bit_index
-        )
+    # create a dictionary to store the Huffman codes
+    huffman_codes = {}
+    while heap:
+        # extract the two bytes with the highest frequencies
+        frequency1, byte1 = heapq.heappop(heap)
+        frequency2, byte2 = heapq.heappop(heap)
 
-        for index, legal_move in enumerate(legal_moves):
-            move_binary = to_binary_string(index, max_binary_length)
-            if len(move_binary) > max_binary_length:
-                break
+        # create a new byte with the combined frequency
+        new_frequency = frequency1 + frequency2
+        new_byte = byte1 + byte2
 
-            move_bits[legal_move.uci()] = move_binary
+        # update the Huffman codes
+        huffman_codes[byte1] = huffman_codes.get(byte1, "") + "0"
+        huffman_codes[byte2] = huffman_codes.get(byte2, "") + "1"
 
-        # take next binary chunk from the file
-        closest_byte_index = file_bit_index // 8
+        # push the new byte back into the heap
+        heapq.heappush(heap, (new_frequency, new_byte))
 
-        file_chunk_pool = "".join([
-            to_binary_string(byte, 8)
-            for byte in file_bytes[closest_byte_index : closest_byte_index + 2]
-        ])
+    # encode the file using the Huffman codes
+    encoded_file = ""
+    for byte in file_bytes:
+        encoded_file += huffman_codes[byte]
 
-        next_file_chunk = file_chunk_pool[
-            file_bit_index % 8
-            : file_bit_index % 8 + max_binary_length
-        ]
+    # convert the encoded file to chess moves
+    chess_moves = []
+    for i in range(0, len(encoded_file), 8):
+        move_binary = encoded_file[i:i+8]
+        move = chess_board.move_stack[-1].uci()
+        chess_moves.append(move)
 
-        # push chess move that corresponds with next chunk
-        for move_uci in move_bits:
-            move_binary = move_bits[move_uci]
+    # convert the chess moves to PGNs
+    pgn_board = pgn.Game()
+    pgn_board.add_line(chess_moves)
 
-            if move_binary == next_file_chunk:
-                chess_board.push_uci(move_uci)
-                break
-
-        # move the pointer along by the chunk size
-        file_bit_index += max_binary_length
-
-        # check if the game is in a terminal state or EOF
-        # if it is, convert it to a pgn and add to pgn list
-        eof_reached = file_bit_index >= file_bits_count
-
-        if (
-            chess_board.legal_moves.count() <= 1
-            or chess_board.is_insufficient_material()
-            or chess_board.can_claim_draw()
-            or eof_reached
-        ):
-            pgn_board = pgn.Game()
-            pgn_board.add_line(chess_board.move_stack)
-
-            output_pgns.append(str(pgn_board))
-
-            chess_board.reset()
-
-        if eof_reached: break
+    output_pgns.append(str(pgn_board))
 
     print(
         f"\nsuccessfully converted file to pgn with "

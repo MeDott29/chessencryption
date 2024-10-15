@@ -2,7 +2,7 @@ from time import time
 from math import log2
 from chess import pgn, Board
 from util import get_pgn_games
-
+import bisect
 
 ###
 ### Pass in a PGN string of 1 or more games
@@ -10,8 +10,6 @@ from util import get_pgn_games
 ###
 def decode(pgn_string: str, output_file_path: str):
     start_time = time()
-
-    total_move_count = 0
 
     # load games from pgn file
     games: list[pgn.Game] = get_pgn_games(pgn_string)
@@ -83,3 +81,6 @@ def decode(pgn_string: str, output_file_path: str):
         + f"{len(games)} game(s), {total_move_count} total move(s)"
         + f"({round(time() - start_time, 3)}s)."
     )
+
+    # return pgn string
+    return "\n\n".join(output_pgns)
