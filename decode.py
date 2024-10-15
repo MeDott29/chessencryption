@@ -1,86 +1,55 @@
 from time import time
-from math import log2
 from chess import pgn, Board
-from util import get_pgn_games
-import bisect
+from io import StringIO
 
-###
-### Pass in a PGN string of 1 or more games
-### and also the file path that it should write to in the end
-###
 def decode(pgn_string: str, output_file_path: str):
     start_time = time()
 
-    # load games from pgn file
-    games: list[pgn.Game] = get_pgn_games(pgn_string)
+    # Load games from PGN string
+    pgn_io = StringIO(pgn_string)
+    game1 = pgn.read_game(pgn_io)
+    game2 = pgn.read_game(pgn_io)
 
-    # convert moves to binary and write to output file
-    with open(output_file_path, "w") as output_file:
-        output_file.write("")
+    if not game1 or not game2:
+        raise ValueError("Invalid PGN string: couldn't read two games")
 
-    output_file = open(output_file_path, "ab")
-    output_data = ""
+    board1 = game1.board()
+    board2 = game2.board()
 
-    for game_index, game in enumerate(games):
-        chess_board = Board()
+    output_bytes = bytearray()
+    current_byte = 0
+    bit_count = 0
 
-        game_moves = list(game.mainline_moves())
-        total_move_count += len(game_moves)
+    for node1, node2 in zip(game1.mainline(), game2.mainline()):
+        move1 = node1.move
+        move2 = node2.move
 
-        for move_index, move in enumerate(game_moves):
-            # get UCIs of legal moves in current position
-            legal_move_ucis = [
-                legal_move.uci()
-                for legal_move in list(chess_board.generate_legal_moves())
-            ]
+        legal_moves1 = list(board1.legal_moves)
+        legal_moves2 = list(board2.legal_moves)
 
-            # get binary of the move played, using its index in the legal moves
-            move_binary = bin(
-                legal_move_ucis.index(move.uci())
-            )[2:]
+        two_bits = (legal_moves1.index(move1) + 
+                    legal_moves2.index(move2) * len(legal_moves1)) & 0b11
 
-            # if this is the last move of the last game,
-            # binary cannot go over a total length multiple of 8
-            if (
-                game_index == len(games) - 1 
-                and move_index == len(game_moves) - 1
-            ):
-                max_binary_length = min(
-                    int(log2(
-                        len(legal_move_ucis)
-                    )),
-                    8 - (len(output_data) % 8)
-                )
-            else:
-                max_binary_length = int(log2(
-                    len(legal_move_ucis)
-                ))
+        current_byte = (current_byte << 2) | two_bits
+        bit_count += 2
 
-            # Pad move binary to meet max binary length
-            required_padding = max(0, max_binary_length - len(move_binary))
-            move_binary = ("0" * required_padding) + move_binary
+        if bit_count == 8:
+            output_bytes.append(current_byte)
+            current_byte = 0
+            bit_count = 0
 
-            # play move on board
-            chess_board.push_uci(move.uci())
+        board1.push(move1)
+        board2.push(move2)
 
-            # add move binary to output data string
-            output_data += move_binary
+    # Handle any remaining bits
+    if bit_count > 0:
+        current_byte <<= (8 - bit_count)
+        output_bytes.append(current_byte)
 
-            # if output binary pool is multiple of 8, flush it to file
-            if len(output_data) % 8 == 0:
-                output_file.write(
-                    bytes([
-                        int(output_data[i * 8 : i * 8 + 8], 2)
-                        for i in range(len(output_data) // 8)
-                    ])
-                )
-                output_data = ""
+    # Write decoded bytes to file
+    with open(output_file_path, "wb") as output_file:
+        output_file.write(output_bytes)
 
-    print(
-        "\nsuccessfully decoded pgn with "
-        + f"{len(games)} game(s), {total_move_count} total move(s)"
-        + f"({round(time() - start_time, 3)}s)."
-    )
+    print(f"\nSuccessfully decoded PGN with 2 games ({round(time() - start_time, 3)}s).")
 
-    # return pgn string
-    return "\n\n".join(output_pgns)
+    return output_file_path

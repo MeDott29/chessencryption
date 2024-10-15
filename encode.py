@@ -1,86 +1,51 @@
 from time import time
-from math import log2
-from chess import pgn, Board
-from util import to_binary_string
-import heapq
+from chess import Board, pgn
+import io
 
-###
-### Enter a file path
-### and it returns a string of 1 or more PGNs that represent it
-###
 def encode(file_path: str):
     start_time = time()
 
-    # read binary of file
-    print("reading file...")
+    # Read binary of file
+    print("Reading file...")
+    with open(file_path, "rb") as file:
+        file_bytes = file.read()
 
-    file_bytes = list(open(file_path, "rb").read())
-
-    # record number of bits in file
+    # Record number of bits in file
     file_bits_count = len(file_bytes) * 8
 
-    # convert file to chess moves
-    print("\nencoding file...")
+    print("\nEncoding file...")
 
-    output_pgns: list[str] = []
+    board1 = Board()
+    board2 = Board()
+    game1 = pgn.Game()
+    game2 = pgn.Game()
+    node1 = game1
+    node2 = game2
 
-    file_bit_index = 0
-
-    chess_board = Board()
-
-    # create a dictionary to store the frequency of each byte
-    byte_frequency = {}
     for byte in file_bytes:
-        if byte not in byte_frequency:
-            byte_frequency[byte] = 0
-        byte_frequency[byte] += 1
+        for i in range(4):  # Process 2 bits at a time
+            two_bits = (byte >> (6 - i*2)) & 0b11
+            
+            # Encode 2 bits using moves on both boards
+            legal_moves1 = list(board1.legal_moves)
+            legal_moves2 = list(board2.legal_moves)
+            
+            move1 = legal_moves1[two_bits % len(legal_moves1)]
+            move2 = legal_moves2[two_bits // len(legal_moves1)]
+            
+            board1.push(move1)
+            board2.push(move2)
+            
+            node1 = node1.add_variation(move1)
+            node2 = node2.add_variation(move2)
 
-    # create a heap to store the bytes with their frequencies
-    heap = []
-    for byte, frequency in byte_frequency.items():
-        heapq.heappush(heap, (-frequency, byte))
+    print(f"\nSuccessfully converted file to PGN with 2 games ({round(time() - start_time, 3)}s).")
 
-    # create a dictionary to store the Huffman codes
-    huffman_codes = {}
-    while heap:
-        # extract the two bytes with the highest frequencies
-        frequency1, byte1 = heapq.heappop(heap)
-        frequency2, byte2 = heapq.heappop(heap)
+    # Combine both games into a single PGN string
+    output = io.StringIO()
+    exporter = pgn.FileExporter(output)
+    game1.accept(exporter)
+    output.write("\n\n")
+    game2.accept(exporter)
 
-        # create a new byte with the combined frequency
-        new_frequency = frequency1 + frequency2
-        new_byte = byte1 + byte2
-
-        # update the Huffman codes
-        huffman_codes[byte1] = huffman_codes.get(byte1, "") + "0"
-        huffman_codes[byte2] = huffman_codes.get(byte2, "") + "1"
-
-        # push the new byte back into the heap
-        heapq.heappush(heap, (new_frequency, new_byte))
-
-    # encode the file using the Huffman codes
-    encoded_file = ""
-    for byte in file_bytes:
-        encoded_file += huffman_codes[byte]
-
-    # convert the encoded file to chess moves
-    chess_moves = []
-    for i in range(0, len(encoded_file), 8):
-        move_binary = encoded_file[i:i+8]
-        move = chess_board.move_stack[-1].uci()
-        chess_moves.append(move)
-
-    # convert the chess moves to PGNs
-    pgn_board = pgn.Game()
-    pgn_board.add_line(chess_moves)
-
-    output_pgns.append(str(pgn_board))
-
-    print(
-        f"\nsuccessfully converted file to pgn with "
-        + f"{len(output_pgns)} game(s) "
-        + f"({round(time() - start_time, 3)}s)."
-    )
-
-    # return pgn string
-    return "\n\n".join(output_pgns)
+    return output.getvalue()
