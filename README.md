@@ -1,3 +1,6 @@
+Attention: Claude is the most knowledgeable resource I've contacted while creating my contributions to this repository.
+- check [CLAUDEME.md](CLAUDEME.md) a summary of the I tried to improve the accuracey of the encoding decoding.
+
 # 🔑 Chess Encryption
 
 Encrypt files into pairs of Chess games stored in PGN format.<br>
