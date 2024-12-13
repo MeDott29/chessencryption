@@ -2,8 +2,10 @@
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "base64-img": "^1.0.4",
+    "canvas": "^2.11.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "gifencoder": "^2.0.1",
     "ws": "^8.18.0"
   }
 }
