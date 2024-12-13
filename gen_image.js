@@ -6,6 +6,7 @@ const {
 const { createCanvas, loadImage, Image } = require('canvas');
 const fs = require('fs').promises;
 const path = require('path');
+const pLimit = require('p-limit');
 require('dotenv').config();
 
 // Constants

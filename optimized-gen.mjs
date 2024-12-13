@@ -56,9 +56,8 @@ class RowGenerator {
                     text: `You are an image generator creating pixel data for ${this.width}x1 rows of an image.
                           For each row request, generate an array of ${this.width} RGB pixel values.
                           Each pixel should be an array of 3 numbers between 0-255 for [R,G,B].
-                          RESPOND ONLY with the raw JSON array. Do not use markdown formatting, code blocks, or any other text.
-                          Example response: [[255,0,0],[0,255,0],[0,0,255],[255,255,255]]
-                          Your response should look exactly like this format but with ${this.width} pixels.`
+                          Format the response as a JSON array of pixel arrays.
+                          Example format for 4 pixels: [[255,0,0],[0,255,0],[0,0,255],[255,255,255]]`
                 }]
             }]
         });
@@ -83,11 +82,11 @@ class RowGenerator {
     }
 
     buildRowPrompt(rowNum, context) {
-        let prompt = `Generate row ${rowNum + 1} of ${this.height} for "${this.userStory}". 
-                     Respond ONLY with a raw JSON array of ${this.width} pixels.
-                     Do not use markdown, code blocks, or any other text.
-                     Each pixel must be [R,G,B] with values 0-255.
-                     Format: [[R,G,B],[R,G,B],...]`;
+        let prompt = `Generate row ${rowNum + 1} of ${this.height} for "${this.userStory}".
+                     You must return EXACTLY ${this.width} pixels as a JSON array.
+                     Each pixel must be [R,G,B] where R,G,B are integers 0-255.
+                     Format: [[R,G,B],[R,G,B],...] with exactly ${this.width} [R,G,B] arrays.
+                     Do not include any text, markdown, or explanation - just the JSON array.`;
         
         if (context.previousRows.length > 0) {
             prompt += ` Ensure colors flow smoothly from the previous row.`;
@@ -95,6 +94,73 @@ class RowGenerator {
         
         return prompt;
     }
+    
+    cleanModelResponse(response) {
+        // First remove any markdown and get just the array content
+        let cleaned = response.replace(/```(?:json)?\n?/g, '')
+                            .replace(/```\n?/g, '')
+                            .trim();
+        
+        // Extract just the array portion using a more precise regex
+        const arrayMatch = cleaned.match(/\[\s*\[(?:\s*\[\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\](?:\s*,\s*)?)*\s*\]\s*\]/);
+        if (!arrayMatch) {
+            throw new Error('No valid array structure found in response');
+        }
+        cleaned = arrayMatch[0];
+        
+        // Fix any truncated arrays by ensuring proper closure
+        let openBrackets = (cleaned.match(/\[/g) || []).length;
+        let closeBrackets = (cleaned.match(/\]/g) || []).length;
+        
+        if (openBrackets !== closeBrackets) {
+            throw new Error('Malformed array structure - mismatched brackets');
+        }
+        
+        return cleaned;
+    }
+
+    validatePixelData(pixelData) {
+        if (!Array.isArray(pixelData)) {
+            throw new Error('Pixel data must be an array');
+        }
+        
+        // Handle nested array structure variations
+        if (Array.isArray(pixelData[0]) && Array.isArray(pixelData[0][0])) {
+            pixelData = pixelData[0]; // Unwrap extra layer
+        }
+        
+        if (pixelData.length !== this.width) {
+            // If we have too few pixels, pad with the last valid pixel
+            if (pixelData.length < this.width) {
+                const lastPixel = pixelData[pixelData.length - 1] || [255, 255, 255];
+                while (pixelData.length < this.width) {
+                    pixelData.push([...lastPixel]);
+                }
+            } else {
+                // If we have too many pixels, truncate
+                pixelData = pixelData.slice(0, this.width);
+            }
+        }
+        
+        // Validate and sanitize each pixel
+        return pixelData.map((pixel, index) => {
+            if (!Array.isArray(pixel) || pixel.length !== 3) {
+                // If pixel is invalid, use previous valid pixel or white
+                const prevPixel = pixelData[index - 1] || [255, 255, 255];
+                return [...prevPixel];
+            }
+            
+            // Convert and clamp RGB values
+            return pixel.map(value => {
+                const num = parseInt(value);
+                if (isNaN(num)) {
+                    return 255; // Default to white for invalid values
+                }
+                return Math.max(0, Math.min(255, num));
+            });
+        });
+    }
+
 
     async generateRow(rowNum, timeout = INITIAL_TIMEOUT) {
         const context = await this.getRowContext(rowNum);
@@ -108,41 +174,20 @@ class RowGenerator {
                 )
             ]);
             
-            let response = result.response.text().trim();
-            
-            // Clean up markdown formatting
-            response = response.replace(/^```json\s*/, '')  // Remove opening ```json
-                             .replace(/^```\s*/, '')        // Remove opening ``` without json
-                             .replace(/\s*```$/, '')        // Remove closing ```
-                             .trim();
-            
-            // Additional cleanup for common issues
-            response = response.replace(/[\u201C\u201D]/g, '"')  // Replace smart quotes
-                             .replace(/^\s*\[\s*\[/, '[[')      // Clean up nested array start
-                             .replace(/\]\s*\]\s*$/, ']]');     // Clean up nested array end
-            
-            console.log('Cleaned response:', response.slice(0, 100) + '...');  // Debug log
+            const response = result.response.text();
+            const cleanedResponse = this.cleanModelResponse(response);
             
             let pixelData;
             try {
-                pixelData = JSON.parse(response);
+                pixelData = JSON.parse(cleanedResponse);
             } catch (error) {
-                throw new Error(`Invalid JSON response: ${error.message}\nResponse was: ${response.slice(0, 100)}...`);
+                 throw new Error(`Invalid JSON response after cleaning: ${error.message}\nCleaned response: ${cleanedResponse}`);
             }
             
-            if (!Array.isArray(pixelData) || pixelData.length !== this.width) {
-                throw new Error(`Invalid pixel data length: expected ${this.width}, got ${pixelData?.length}`);
-            }
+            // Validate and sanitize the pixel data
+            const validatedPixelData = this.validatePixelData(pixelData);
             
-            // Validate pixel format
-            for (const pixel of pixelData) {
-                if (!Array.isArray(pixel) || pixel.length !== 3 ||
-                    !pixel.every(v => Number.isInteger(v) && v >= 0 && v <= 255)) {
-                    throw new Error('Invalid pixel format');
-                }
-            }
-            
-            return pixelData;
+            return validatedPixelData;
             
         } catch (error) {
             throw new Error(`Row ${rowNum + 1} generation failed: ${error.message}`);
