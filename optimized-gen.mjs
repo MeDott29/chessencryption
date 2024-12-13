@@ -71,34 +71,53 @@ function cleanBase64Response(response) {
 // Function to parse a PNG buffer with validation
 function parsePngBuffer(buffer) {
     return new Promise((resolve, reject) => {
-        // Create a new PNG instance with strict parsing
-        const png = new PNG({
-            filterType: -1,  // Allow any valid filter type
-            checkCRC: false, // We'll do our own validation
-            skipRescale: true,
-            fixTransparency: false
-        });
-        
-        // Add error handler
-        png.on('error', (error) => {
-            reject(new Error(`PNG parsing error: ${error.message}`));
-        });
-        
-        // Add parsing complete handler
-        png.on('parsed', function() {
-            if (this.width !== IMAGE_WIDTH || this.height !== 1) {
-                reject(new Error(`Invalid dimensions: ${this.width}x${this.height}`));
-                return;
-            }
-            resolve(this);
-        });
-        
-        // Start parsing
-        png.parse(buffer, (error, data) => {
-            if (error) {
-                reject(error);
-            }
-        });
+        try {
+            // Create a new PNG instance with more permissive parsing
+            const png = new PNG({
+                filterType: 4,  // Paeth filter
+                checkCRC: false,
+                skipRescale: true,
+                fixTransparency: true,
+                colorType: 6  // RGBA
+            });
+            
+            // Add error handler
+            png.on('error', (error) => {
+                console.warn('PNG parsing warning:', error.message);
+                // Continue despite warnings
+            });
+            
+            // Add parsing complete handler
+            png.on('parsed', function() {
+                if (this.width !== IMAGE_WIDTH || this.height !== 1) {
+                    reject(new Error(`Invalid dimensions: ${this.width}x${this.height}`));
+                    return;
+                }
+                
+                // Ensure we have valid RGBA data
+                if (!this.data || this.data.length !== IMAGE_WIDTH * 4) {
+                    reject(new Error('Invalid pixel data'));
+                    return;
+                }
+                
+                resolve(this);
+            });
+            
+            // Start parsing with timeout
+            const parseTimeout = setTimeout(() => {
+                reject(new Error('PNG parsing timeout'));
+            }, 5000);
+            
+            png.parse(buffer, (error, data) => {
+                clearTimeout(parseTimeout);
+                if (error) {
+                    reject(error);
+                }
+            });
+            
+        } catch (error) {
+            reject(new Error(`PNG initialization error: ${error.message}`));
+        }
     });
 }
 async function createWhiteRowImageData() {
@@ -183,13 +202,15 @@ The response must:
 1. Be ONLY the raw base64 string
 2. NOT include 'data:image/png;base64,' prefix
 3. NOT have any quotes, formatting, or additional text
-4. Represent a valid PNG file with dimensions ${IMAGE_WIDTH}x1
-5. Use standard PNG encoding with proper IHDR and IDAT chunks
-6. Follow PNG specification exactly with:
-   - Valid PNG signature (89 50 4E 47 0D 0A 1A 0A)
-   - IHDR chunk with correct width=${IMAGE_WIDTH} height=1
-   - IDAT chunk with valid zlib compression
-   - IEND chunk`;
+4. Be a simple RGBA PNG with these exact chunks in order:
+   - PNG signature
+   - IHDR (width=${IMAGE_WIDTH}, height=1, bit depth=8, color type=6 RGBA)
+   - IDAT (with basic zlib compression)
+   - IEND
+5. Use basic PNG settings:
+   - No interlacing
+   - No color palette
+   - No extra chunks`;
     
     if (previousRow) {
         prompt += ` Use this previous row's colors for continuity: ${previousRow}`;
