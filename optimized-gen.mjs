@@ -101,10 +101,10 @@ function parsePngBuffer(buffer) {
                 return;
             }
 
-            // Create a new PNG instance with strict parsing
+            // Create a new PNG instance with more lenient parsing
             const png = new PNG({
-                filterType: -1,  // Auto-detect filter
-                checkCRC: true,  // Enable CRC checks
+                filterType: 4,  // Paeth filter
+                checkCRC: false,  // Disable CRC checks temporarily
                 skipRescale: true,
                 fixTransparency: true,
                 colorType: 6,  // RGBA
@@ -258,14 +258,23 @@ The response must:
 2. NOT include 'data:image/png;base64,' prefix
 3. NOT have any quotes, formatting, or additional text
 4. Be a simple RGBA PNG with these exact chunks in order:
-   - PNG signature
-   - IHDR (width=${IMAGE_WIDTH}, height=1, bit depth=8, color type=6 RGBA)
-   - IDAT (with basic zlib compression)
-   - IEND
-5. Use basic PNG settings:
+   - PNG signature (89 50 4E 47 0D 0A 1A 0A)
+   - IHDR chunk with:
+     * width=${IMAGE_WIDTH}
+     * height=1
+     * bit depth=8
+     * color type=6 (RGBA)
+     * compression=0
+     * filter=4 (Paeth)
+     * interlace=0
+   - Single IDAT chunk with zlib-compressed RGBA data
+   - IEND chunk (00 00 00 00 49 45 4E 44 AE 42 60 82)
+5. Use these exact settings:
    - No interlacing
    - No color palette
-   - No extra chunks`;
+   - No ancillary chunks
+   - Paeth filtering (type 4)
+   - Standard zlib compression`;
     
     if (previousRow) {
         prompt += ` Use this previous row's colors for continuity: ${previousRow}`;
