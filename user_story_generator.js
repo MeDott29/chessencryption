@@ -49,6 +49,7 @@ async function generateUserStory() {
     The user story should follow the format: "As a [user role], I want [a goal], So that [a benefit]".
     The description should be a detailed description of a single frame of the GIF.
     The response should be formatted as a JSON object with the keys "userStory", "description".`
+    console.log("generateUserStory prompt:", prompt)
     try {
         const result = await chatSession.sendMessage(prompt);
         try {
@@ -56,6 +57,7 @@ async function generateUserStory() {
             // Remove markdown code fences if present
             responseText = responseText.replace(/```json\n/g, '').replace(/```/g, '');
             const response = JSON.parse(responseText);
+            console.log("generateUserStory response:", response)
             return response;
         } catch (error) {
             console.error("Failed to parse JSON response", error);
@@ -76,9 +78,11 @@ async function generateBase64FrameData() {
         The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
         The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
         The images must be delivered as a base64 strings for GIF frames, separated by a new line. No other text is needed.`
+    console.log("generateBase64FrameData prompt:", prompt)
     try {
         const result = await chatSession.sendMessage(prompt);
         const base64Strings = result.response.text().split('\n');
+        console.log("generateBase64FrameData response:", base64Strings)
         return base64Strings;
     } catch (error) {
         console.error("Failed to generate base64 image data", error)

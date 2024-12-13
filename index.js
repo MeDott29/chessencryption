@@ -178,7 +178,9 @@ async function run() {
         The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
         The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
         The images must be delivered as a base64 strings for GIF frames. No other text is needed.`
+    console.log("generateBase64FrameData prompt:", prompt)
     const result = await chatSession.sendMessage(prompt);
+    console.log("generateBase64FrameData response:", result.response.text())
         const base64Strings = result.response.text().split('\n');
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
         await writeUserStories(updatedStories);
