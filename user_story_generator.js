@@ -69,13 +69,26 @@ async function generateUserStory() {
     }
 }
 async function generateBase64FrameData() {
-    // Hardcoded base64 string for a simple 2-frame GIF
-    const base64Strings = [
-        "R0lGODlhCgAKAIABAAAAAP///yH5BAEAAAEALAAAAAAKAAoAAAIXjI+py+0Po5y02ouz3rz7D4biSJbmiabqyrbuC8fyTNf2Pf53f4E9RDy+c+AAgBNAAAA7",
-        "R0lGODlhCgAKAIABAAAAAP///yH5BAEAAAEALAAAAAAKAAoAAAIXjI+py+0Po5y02ouz3rz7D4biSJbmiabqyrbuC8fyTNf2Pf53f4E9RDy+c+AAgBNAAAA7"
-    ];
-    console.log("generateBase64FrameData response:", base64Strings)
-    return base64Strings;
+    const chatSession = model.startChat({
+        generationConfig,
+        safetySettings,
+        history: [],
+      });
+    const prompt = `Generate two very small, square images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
+        The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
+        The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
+        The images must be delivered as a base64 strings for GIF frames, separated by newlines. No other text is needed.`
+    console.log("generateBase64FrameData prompt:", prompt)
+    try {
+        const result = await chatSession.sendMessage(prompt);
+        console.log("generateBase64FrameData response:", result.response.text())
+        const base64Strings = result.response.text().split('\n');
+        console.log("generateBase64FrameData response:", base64Strings)
+        return base64Strings;
+    } catch (error) {
+        console.error("Failed to generate base64 frame data", error)
+        return null;
+    }
 }
 async function appendNewUserStory() {
     const userStoryData = await generateUserStory();
