@@ -30,15 +30,15 @@ const generationConfig = {
     maxOutputTokens: 8192,
 };
 
-const systemPrompt = `You are an expert image generator. Generate ONLY a very short base64 string representing a single row of pixels.
+const systemPrompt = `You are an expert image generator. Generate a detailed base64 string representing a high-quality row of pixels.
 
 Rules:
 1. Output ONLY the base64 string - nothing else
-2. Keep the string as SHORT as possible
-3. Each row must be exactly the requested width
+2. Take time to generate a detailed, high-quality result
+3. Each row must be exactly ${imageWidth} pixels wide
 4. Return empty string "" if failed
 
-Example of desired length: "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4"`;
+The base64 should be detailed enough to take 4-5 seconds to generate.`;
 
 async function run() {
     function isValidBase64(str) {
@@ -74,7 +74,11 @@ async function run() {
     try {
         for (let i = 0; i < imageHeight; i++) {
             try {
-                const prompt = `Generate row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Return ONLY shortest possible base64.`;
+                const prompt = `Generate a detailed, high-quality row ${i+1}/${imageHeight} of "${userStory}". 
+Width: ${imageWidth}px. 
+Consider lighting, shadows, and fine details.
+Take time to create a rich, nuanced representation.
+Return ONLY the base64 string.`;
                 console.log(`Generating row ${i + 1}...`);
                 
                 const messageStartTime = performance.now();
