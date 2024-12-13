@@ -212,11 +212,20 @@ Return ONLY a valid base64-encoded PNG image string.
     const result2_0 = await model2_0.generateContent(prompt2_0);
     let singleBase64 = result2_0.response.text().trim();
     
+    // Additional cleaning steps
+    singleBase64 = singleBase64
+        .replace(/[\r\n]+/g, '') // Remove any line breaks
+        .replace(/[^A-Za-z0-9+/=]/g, '') // Remove any non-base64 characters
+        .trim();
+
     // Clean up and validate the response
     const { validateAndNormalizeBase64 } = require('./gif_generator');
     const validatedBase64 = validateAndNormalizeBase64(singleBase64);
+    
     if (!validatedBase64) {
-        console.log("Raw response from model:", singleBase64); // Add this for debugging
+        console.log("Raw response length:", singleBase64.length);
+        console.log("First 100 chars:", singleBase64.substring(0, 100));
+        console.log("Last 100 chars:", singleBase64.substring(singleBase64.length - 100));
         throw new Error('Generated image data failed validation');
     }
 
