@@ -140,15 +140,25 @@ async function run() {
                 }
                 console.error("Error during image generation:", error);
                 break;
+                if (error.message === 'Timeout') {
+                    console.warn("Timeout occurred - using blank row");
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, i, imageWidth, 1);
+                    continue;
+                }
+                console.error("Error during image generation:", error);
+                break;
             }
         }
         console.log("All Rows Generated");
+
+        const endTime = performance.now();
+        console.log(`Total execution time: ${((endTime - startTime) / 1000).toFixed(2)} seconds`);
     } catch (error) {
         console.error("Fatal error during image generation:", error);
+        const endTime = performance.now();
+        console.log(`Execution terminated after: ${((endTime - startTime) / 1000).toFixed(2)} seconds`);
     }
-
-     const endTime = performance.now();
-     console.log(`Total execution time: ${((endTime - startTime) / 1000).toFixed(2)} seconds`);
 }
 
 run();
