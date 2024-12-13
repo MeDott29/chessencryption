@@ -55,7 +55,7 @@ wss.on('connection', ws => {
 });
 
 app.use(express.static('public')); // Serve static files from 'public' folder
-let PORT = process.env.PORT || 3000;
+let PORT = 8000;
 
 function isPortInUse(port) {
     return new Promise((resolve, reject) => {
