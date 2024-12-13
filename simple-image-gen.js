@@ -104,8 +104,14 @@ async function processImageRow(base64String, ctx, y) {
 
 // Generate a single row using Gemini API
 async function generateRow(chatSession, rowNum, totalRows, prompt) {
-    const rowPrompt = `Generate a single row of pixels (${CONFIG.width}x1) for row ${rowNum} of ${totalRows} of "${prompt}". 
-Return ONLY a base64 encoded PNG image, ${CONFIG.width}x1 pixels, RGBA format.`;
+    const rowPrompt = `Generate a single row of pixels (${CONFIG.width}x1) for row ${rowNum} of ${totalRows} of "${prompt}".
+Return ONLY a valid base64 encoded PNG image string that meets these requirements:
+- Image must be exactly ${CONFIG.width}x1 pixels in RGBA format
+- Do not include any markdown formatting
+- Do not include "image" prefix
+- Do not include any explanation text
+- The string should only contain valid base64 characters (A-Z, a-z, 0-9, +, /, and = for padding)
+- The output should be a single continuous line of base64 characters`;
 
     const result = await Promise.race([
         chatSession.sendMessage(rowPrompt),
