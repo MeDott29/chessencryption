@@ -30,6 +30,9 @@ const generationConfig = {
     maxOutputTokens: 8192,
 };
 
+const imageWidth = 256; // Define the desired image dimensions
+const imageHeight = 256;
+
 const systemPrompt = `You are an expert image generator. Generate a detailed base64 string representing a high-quality row of pixels.
 
 Rules:
@@ -58,8 +61,6 @@ async function run() {
     });
 
     const userStory = "a majestic mountain landscape"; // Define the user story here.
-    const imageWidth = 256; // Define the desired image dimensions
-    const imageHeight = 256;
     const fileName = 'generated_image.png';
     const filePath = path.join(__dirname, fileName)
 
