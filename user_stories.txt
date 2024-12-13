@@ -80,5 +80,23 @@ ID: 14
 User Story: As a website designer, I want a simple color animation for my website's logo, so that I can add a subtle, engaging visual element to attract the user's attention.
 Description: The animation should involve a gradual color shift of the website logo.  The logo starts with a base color, for example, a dark blue (#214761). Over a period of 5 seconds, the color smoothly transitions to a lighter shade of blue (#70A7C0). The transition should be a linear interpolation between the two colors, creating a smooth gradient effect.  After reaching the lighter blue, the color should smoothly transition back to the original dark blue over another 5 seconds.  This cycle should then repeat indefinitely.  The animation should be subtle and not distracting, enhancing the overall user experience without being overly flashy.  The animation should also be easily controllable via CSS or JavaScript, allowing for adjustment of the duration, colors, and animation easing.
 Tags: generated
+Status: In Progress
+
+ID: 15
+User Story: As a website designer, I want a simple color animation for a button on hover, so that I can improve the user experience and make the button more visually appealing.
+Description: The animation should occur when the user hovers their mouse over a button element.  The animation will smoothly transition the button's background color from its default state to a slightly lighter, more vibrant shade of the same color.  The transition should take approximately 0.3 seconds and use a smooth easing function (e.g., easeInOutCubic).  Upon mouseout (the cursor leaving the button), the button should transition back to its original color over the same 0.3-second duration, again using the same easing function.  The animation should be subtle and not jarring to the user. The original and hover colors should be easily configurable through CSS variables or similar methods to allow for flexibility in design choices. For example, if the default button color is #007bff (a blue color), the hover color could be #66a6ff.  The animation should be compatible with all major browsers.
+Tags: generated
+Status: In Progress
+
+ID: 16
+User Story: As a website designer, I want a simple color animation for my button on hover, so that I can improve the user experience and make the button more engaging.
+Description: The animation should involve a smooth transition of the button's background color from its default state to a slightly lighter shade upon hovering the mouse over it.  Specifically:
+
+* **Default State:** The button's background color is a deep teal (#008080).
+* **Hover State:** On mouse hover, the background color smoothly transitions to a lighter teal (#66CDAA) over a period of 0.3 seconds using a linear easing function. 
+* **Transition:** The transition should be visually seamless, without any abrupt changes or flickering.  The color change should appear as a gradual, pleasant shift.
+* **No other visual elements:** Only the background color changes; the text, border, and other button elements remain static during the animation.
+* **Responsiveness:** The animation should function consistently across different screen sizes and devices.
+Tags: generated
 Status: Pending
 
