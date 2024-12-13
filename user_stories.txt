@@ -1,0 +1,24 @@
+ID: 1
+User Story: As a GIF creator, I want a cartoon-style frame showing a cat jumping over a ball, So that I can add it to my funny animal animation.
+Description: The frame depicts a cartoon cat, drawn with simple, bold outlines and filled with solid, flat colors.  The cat is a ginger tabby, with orange and black stripes rendered in broad strokes. Its body is arched, legs fully extended – two front paws reaching forward, two back paws trailing behind.  The cat's expression is one of determined concentration, its eyes wide and slightly squinted, a simple, slightly open mouth suggesting a silent meow. Its tail is a slightly blurry orange streak behind it, indicating motion.  Below the cat, slightly offset to the left, is a large, bright red ball, rendered as a perfect circle. The ball is smooth and shiny, with a subtle highlight indicating a light source from above. The background is a simple, light beige, providing a stark contrast to the orange cat and red ball.  The overall style is clean and childlike, emphasizing clear shapes and bold lines.
+Tags: cartoon, animals, cat, action
+Status: In Progress
+
+ID: 2
+User Story: As a GIF maker, I want a frame depicting a bustling city street at night with a food truck in focus, So that I can have an engaging background for my urban-themed animation.
+Description: A blur of motion encapsulates a vibrant city street at night.  Neon signs cast a kaleidoscopic glow on the rain-slicked pavement, reflecting in the headlights of speeding cars.  The central focus is a bright yellow food truck, its signage a beacon of warmth amidst the urban chill.  A snaking line of eager customers, their faces partially obscured by the movement, eagerly awaits their turn, their silhouettes almost swallowed by the energetic, colorful chaos of the city around them.
+Tags: city, night, urban, food, background
+Status: Done
+
+ID: 3
+User Story: As an animator, I want a close-up frame of a character's face displaying intense surprise, So that I can illustrate a reaction in a humorous or dramatic scene.
+Description: Close-up on a face, sharply in focus against a soft, indistinct, beige blur.  Eyes are wide, pupils dilated, staring directly forward with a look of utter astonishment.  Eyebrows are dramatically arched, almost meeting at the center of the forehead.  The mouth is slightly parted, revealing a small sliver of teeth, a silent gasp frozen mid-breath.  The skin around the eyes is slightly stretched, emphasizing the intensity of the surprise.
+Tags: character, face, emotion, surprise, close-up
+Status: Done
+
+ID: 4
+User Story: As a GIF creator, I want a frame of a person walking on a beach at sunset, rendered in low-poly style, So that I can produce a visually appealing frame for a serene or nostalgic animation.
+Description: Single frame
+Tags: low-poly, beach, sunset, person, nature
+Status: Pending
+

@@ -1,10 +1,2 @@
-node_modules
-npm-debug.log
-yarn-error.log
+.aider*
 .env
-.DS_Store
-dist
-build
-coverage
-*.log
-*.lock
