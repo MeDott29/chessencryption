@@ -132,22 +132,6 @@ async function run() {
                         console.log(`Progress saved at row ${i+1}`);
                     }
                 }
-                if (error.message === 'Timeout') {
-                    console.warn("Timeout occurred - using blank row");
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, i, imageWidth, 1);
-                    continue;
-                }
-                console.error("Error during image generation:", error);
-                break;
-                if (error.message === 'Timeout') {
-                    console.warn("Timeout occurred - using blank row");
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, i, imageWidth, 1);
-                    continue;
-                }
-                console.error("Error during image generation:", error);
-                break;
             }
         }
         console.log("All Rows Generated");
