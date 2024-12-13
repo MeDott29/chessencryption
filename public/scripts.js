@@ -12,19 +12,22 @@ socket.addEventListener('message', (event) => {
     try {
         const data = JSON.parse(event.data);
         if (data.type === "image") {
-            const userStoryDiv = document.getElementById(`user-story-${data.userStoryID}`) || createUserStoryDiv(data.userStoryID);
+            const userStoryDiv = document.getElementById(`user-story-${data.userStoryID}`) || createUserStoryDiv(data.userStoryID, data.userStory, data.description, data.tags);
             
             // Clear existing images
-            userStoryDiv.querySelectorAll('img').forEach(img => img.remove());
+            userStoryDiv.querySelectorAll('.image-container').forEach(imgContainer => imgContainer.remove());
 
             if (data.base64Strings && data.base64Strings.length >= 2) {
                 try {
+                    const imageContainer = document.createElement('div');
+                    imageContainer.classList.add('image-container');
                     const img1 = document.createElement('img');
                     img1.src = 'image/gif;base64,' + data.base64Strings[0];
                     const img2 = document.createElement('img');
                     img2.src = 'image/gif;base64,' + data.base64Strings[1];
-                    userStoryDiv.appendChild(img1);
-                    userStoryDiv.appendChild(img2);
+                    imageContainer.appendChild(img1);
+                    imageContainer.appendChild(img2);
+                    userStoryDiv.appendChild(imageContainer);
                 } catch (error) {
                     console.error("Error creating or appending images:", error);
                 }
@@ -32,17 +35,25 @@ socket.addEventListener('message', (event) => {
                 console.error("Invalid base64 strings received:", data.base64Strings);
             }
            userStoryDiv.dataset.status = data.status;
+           const statusDisplay = userStoryDiv.querySelector('.status-display');
+           statusDisplay.textContent = `Status: ${data.status}`;
         }
     } catch(err) {
         console.error("Error processing event", err)
     }
 });
 
-function createUserStoryDiv(userStoryID) {
+function createUserStoryDiv(userStoryID, userStory, description, tags) {
   const userStoryDiv = document.createElement('div');
   userStoryDiv.classList.add('user-story');
   userStoryDiv.id = `user-story-${userStoryID}`;
-  userStoryDiv.innerHTML = `<h2>User Story: ${userStoryID}</h2>`;
+  userStoryDiv.innerHTML = `
+    <h2>User Story: ${userStoryID}</h2>
+    <p><strong>User Story:</strong> ${userStory}</p>
+    <p><strong>Description:</strong> ${description}</p>
+    <p><strong>Tags:</strong> ${tags}</p>
+    <p class="status-display"><strong>Status:</strong> Pending</p>
+  `;
   userStoryContainer.appendChild(userStoryDiv);
   return userStoryDiv;
 }
