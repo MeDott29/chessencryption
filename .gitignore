@@ -9,3 +9,4 @@ public
 media
 __pycache__
 .aider*
+.env
