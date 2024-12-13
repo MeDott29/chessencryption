@@ -52,7 +52,10 @@ async function generateUserStory() {
     try {
         const result = await chatSession.sendMessage(prompt);
         try {
-            const response = JSON.parse(result.response.text());
+            let responseText = result.response.text();
+            // Remove markdown code fences if present
+            responseText = responseText.replace(/```json\n/g, '').replace(/```/g, '');
+            const response = JSON.parse(responseText);
             return response;
         } catch (error) {
             console.error("Failed to parse JSON response", error);
