@@ -8,6 +8,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const net = require('net');
+const { processUserStoryImages } = require('./gif_generator');
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -246,6 +247,7 @@ async function run() {
 }
 setInterval(async () => {
     await run();
+    await processUserStoryImages(); // Generate GIFs after processing stories
 }, 10000); // Run every ten seconds
 
 app.get('/user-stories', async (req, res) => {
