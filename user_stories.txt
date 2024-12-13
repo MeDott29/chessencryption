@@ -20,5 +20,5 @@ ID: 4
 User Story: As a GIF creator, I want a frame of a person walking on a beach at sunset, rendered in low-poly style, So that I can produce a visually appealing frame for a serene or nostalgic animation.
 Description: Single frame
 Tags: low-poly, beach, sunset, person, nature
-Status: Pending
+Status: Done
 
