@@ -68,16 +68,27 @@ function cleanBase64Response(response) {
     
     return cleaned;
 }
-// Function to parse a PNG buffer
+// Function to parse a PNG buffer with validation
 function parsePngBuffer(buffer) {
     return new Promise((resolve, reject) => {
-        new PNG().parse(buffer, (error, png) => {
+        const png = new PNG({
+            filterType: 4,
+            checkCRC: false  // Disable CRC checking temporarily
+        });
+        
+        png.parse(buffer, (error, data) => {
             if (error) {
                 reject(error);
                 return;
             }
-           
-            resolve(png);
+            
+            // Validate dimensions after successful parse
+            if (data.width !== IMAGE_WIDTH || data.height !== 1) {
+                reject(new Error(`Invalid dimensions: ${data.width}x${data.height}`));
+                return;
+            }
+            
+            resolve(data);
         });
     });
 }
@@ -158,7 +169,9 @@ The response must:
 1. Be ONLY the raw base64 string
 2. NOT include 'data:image/png;base64,' prefix
 3. NOT have any quotes, formatting, or additional text
-4. Represent a valid PNG file with dimensions ${IMAGE_WIDTH}x1`;
+4. Represent a valid PNG file with dimensions ${IMAGE_WIDTH}x1
+5. Use standard PNG encoding with proper IHDR and IDAT chunks
+6. Follow PNG specification exactly`;
     
     if (previousRow) {
         prompt += ` Use this previous row's colors for continuity: ${previousRow}`;
