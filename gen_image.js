@@ -37,8 +37,9 @@ const imageHeight = 256;
 
 const systemPrompt = `You are an image generator that creates base64 encoded PNG data for single pixel rows.
 Each row must be exactly ${imageWidth} pixels wide and 1 pixel tall.
-Output only the base64 string, no other text.
-The base64 string should represent a valid PNG image.`;
+Output ONLY the raw base64 string with no formatting, quotes, or additional text.
+Do not include the image/png;base64, prefix.
+The base64 string must represent a valid PNG image with dimensions ${imageWidth}x1 pixels.`;
 
 function debugBase64Response(response, rowNum) {
     console.log(`\nRow ${rowNum} raw response:`, response);
@@ -49,6 +50,14 @@ function debugBase64Response(response, rowNum) {
     } catch (e) {
         console.log('Failed to decode as base64:', e.message);
     }
+}
+
+function cleanBase64Response(response) {
+    // Remove any non-base64 characters and common wrapping text
+    let cleaned = response.replace(/^["']|["']$/g, '') // Remove quotes
+                         .replace(/^image\/png;base64,/, '') // Remove data URL prefix
+                         .replace(/[\r\n\s]/g, ''); // Remove whitespace
+    return cleaned;
 }
 
 async function run() {
@@ -92,7 +101,9 @@ async function run() {
     const startTime = performance.now();
     try {
         for (let i = 0; i < imageHeight; i++) {
-                const prompt = `Row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Base64 only.`;
+                const prompt = `Generate a single row of pixels (${imageWidth}x1) for row ${i+1} of ${imageHeight} of "${userStory}". 
+The row should be part of a coherent ${imageWidth}x${imageHeight} final image.
+Return only the raw base64 PNG data.`;
                 console.log(`Generating row ${i + 1}...`);
                 
                 const messageStartTime = performance.now();
