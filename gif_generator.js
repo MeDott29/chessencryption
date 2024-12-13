@@ -19,16 +19,8 @@ async function base64ToImage(base64String) {
             // Optionally, you could implement image resizing here
         }
         
-        // Use a more memory-efficient image loading approach
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = (error) => {
-                console.error('Image loading error:', error);
-                reject(new Error('Failed to load image'));
-            };
-            img.src = `data:image/png;base64,${base64Data}`;
-        });
+        // Use canvas library to load image
+        return await loadImage(`data:image/png;base64,${base64Data}`);
     } catch (error) {
         console.error('Error converting base64 to image:', error);
         throw error;
