@@ -40,9 +40,12 @@
                 const data = await response.json();
                 if (data && data.base64Strings && data.base64Strings.length > 0) {
                     const gifContainer = document.getElementById('gif-container');
-                    const gif = document.createElement('img');
-                    gif.src = `image/gif;base64,${data.base64Strings.join('')}`;
-                    gifContainer.appendChild(gif);
+                    // Assuming each base64 string is a complete GIF frame
+                    data.base64Strings.forEach(base64String => {
+                        const gif = document.createElement('img');
+                        gif.src = `image/gif;base64,${base64String}`;
+                        gifContainer.appendChild(gif);
+                    });
                 } else {
                     console.error("No GIF data found");
                     const gifContainer = document.getElementById('gif-container');

@@ -74,10 +74,10 @@ async function generateBase64FrameData() {
         safetySettings,
         history: [],
       });
-    const prompt = `Generate two very small, square images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
+    const prompt = `Generate two very small, square GIF images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
         The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
         The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
-        The images must be delivered as a base64 strings for GIF frames, separated by newlines. No other text is needed.`
+        The images must be delivered as base64 strings for GIF frames, separated by newlines. No other text is needed.`
     console.log("generateBase64FrameData prompt:", prompt)
     try {
         const result = await chatSession.sendMessage(prompt);
