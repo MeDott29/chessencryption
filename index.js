@@ -103,11 +103,13 @@ async function readUserStories() {
                 currentStory.tags = line.split(': ')[1];
             } else if (line.startsWith('Status:')) {
                 currentStory.status = line.split(': ')[1];
+            } else if (line.startsWith('Image:')) {
+                currentStory.base64Image = line.split(': ')[1];
             }
         }
-           if (currentStory.ID) {
-                    stories.push(currentStory);
-            }
+        if (currentStory.ID) {
+            stories.push(currentStory);
+        }
         return stories;
     } catch (error) {
         console.error('Error reading user stories file:', error);
@@ -121,13 +123,17 @@ async function writeUserStories(stories) {
       output += `User Story: ${story.userStory}\n`;
       output += `Description: ${story.description}\n`;
       output += `Tags: ${story.tags}\n`;
-      output += `Status: ${story.status}\n\n`;
+      output += `Status: ${story.status}\n`;
+      if (story.base64Image) {
+        output += `Image: ${story.base64Image}\n`;
+      }
+      output += '\n';
     }
-    try{
+    try {
         await fs.writeFile(userStoriesFile, output);
         console.log("Updated user_stories.txt")
     } catch (err) {
-          console.error('Error writing user stories file:', err);
+        console.error('Error writing user stories file:', err);
     }
 }
 async function findNextPendingStory(stories) {
@@ -264,6 +270,15 @@ async function run() {
             timestamp: Date.now()  // Add timestamp for tracking
         };
         await writeImageDatabase(imageDatabase);
+
+        // Update the story with the base64 image
+        updatedStories = updatedStories.map(story => {
+            if (story.ID === userStoryID) {
+                return { ...story, base64Image: singleBase64 };
+            }
+            return story;
+        });
+        await writeUserStories(updatedStories);
     } catch (error) {
         console.error('Error generating/saving image:', error);
         // Update story status to error
