@@ -3,6 +3,8 @@ const {
     HarmCategory,
     HarmBlockThreshold,
 } = require("@google/generative-ai");
+const { createCanvas, loadImage, Image } = require('canvas');
+global.Image = Image;
 
 const INITIAL_TIMEOUT = 30; // 30 seconds initial timeout
 const MAX_RETRIES = 3;
@@ -109,8 +111,11 @@ async function run() {
     const filePath = path.join(__dirname, fileName)
 
 
+    // Initialize canvas with white background
     const canvas = createCanvas(imageWidth, imageHeight);
     const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, imageWidth, imageHeight);
 
 
     let prevRowBase64 = "";
@@ -184,11 +189,18 @@ Return only the raw base64 PNG data.`;
                 
                     if (base64String && isValidPNG) {
                         try {
-                            const image = await loadImage(`data:image/png;base64,${base64String}`);
+                            const dataUrl = `data:image/png;base64,${base64String}`;
+                            const image = await loadImage(dataUrl);
+                            
                             if (image.width === imageWidth && image.height === 1) {
+                                // Draw the image and immediately clear references
                                 ctx.drawImage(image, 0, i, imageWidth, 1);
                                 prevRowBase64 = base64String;
                                 console.log(`Successfully processed row ${i+1}`);
+                                
+                                // Clear references to help garbage collection
+                                image.src = '';
+                                if (global.gc) global.gc();
                             } else {
                                 throw new Error(`Invalid dimensions: ${image.width}x${image.height}`);
                             }
