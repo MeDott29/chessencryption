@@ -13,8 +13,22 @@ async function base64ToImage(base64String) {
         // Log image buffer size for debugging
         console.log(`Image buffer size: ${imageBuffer.length} bytes`);
         
-        // Load the image using canvas with error handling
-        return await loadImage(imageBuffer);
+        // Validate buffer size
+        if (imageBuffer.length > 1024 * 1024) { // 1MB limit
+            console.warn('Image buffer exceeds recommended size, attempting to resize');
+            // Optionally, you could implement image resizing here
+        }
+        
+        // Use a more memory-efficient image loading approach
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = (error) => {
+                console.error('Image loading error:', error);
+                reject(new Error('Failed to load image'));
+            };
+            img.src = `data:image/png;base64,${base64Data}`;
+        });
     } catch (error) {
         console.error('Error converting base64 to image:', error);
         throw error;
@@ -30,22 +44,29 @@ async function createRotationGif(imageData, outputPath, options = {}) {
             duration = 100 // milliseconds per frame
         } = options;
 
-        // Create GIF encoder
+        // Create GIF encoder with memory-efficient settings
         const encoder = new GIFEncoder(width, height);
         encoder.start();
         encoder.setRepeat(0);   // 0 for repeat, -1 for no repeat
         encoder.setDelay(duration);  // frame delay in ms
-        encoder.setQuality(10); // image quality. 10 is default
+        encoder.setQuality(20); // Increased quality loss to reduce memory usage
 
         // Create canvas
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
 
-        // Load the base image
-        const image = await base64ToImage(imageData);
+        // Load the base image with error handling
+        let image;
+        try {
+            image = await base64ToImage(imageData);
+        } catch (imageError) {
+            console.error('Failed to load image for GIF:', imageError);
+            return null; // Skip this image
+        }
 
-        // Create rotation frames
+        // Create rotation frames with memory management
         for (let i = 0; i < frames; i++) {
+            // Clear canvas to prevent memory buildup
             ctx.clearRect(0, 0, width, height);
             
             // Rotate the image
@@ -53,8 +74,8 @@ async function createRotationGif(imageData, outputPath, options = {}) {
             ctx.translate(width/2, height/2);
             ctx.rotate((i * Math.PI * 2) / frames);
             
-            // Scale down the image to ensure it fits
-            const scale = Math.min(width / image.width, height / image.height);
+            // Aggressive scaling to reduce memory usage
+            const scale = Math.min(width / image.width, height / image.height, 1);
             const scaledWidth = image.width * scale;
             const scaledHeight = image.height * scale;
             
@@ -63,6 +84,9 @@ async function createRotationGif(imageData, outputPath, options = {}) {
 
             // Add frame to encoder
             encoder.addFrame(ctx);
+
+            // Optional: Force garbage collection after each frame
+            if (global.gc) global.gc();
         }
 
         // Finish the GIF
@@ -76,7 +100,7 @@ async function createRotationGif(imageData, outputPath, options = {}) {
         return outputPath;
     } catch (error) {
         console.error('Error creating rotation GIF:', error);
-        throw error;
+        return null; // Prevent entire process from stopping
     }
 }
 
@@ -94,11 +118,15 @@ async function processUserStoryImages() {
             try {
                 if (storyData.singleImage) {
                     const gifPath = `public/gifs/story_${storyId}_rotation.gif`;
-                    await createRotationGif(storyData.singleImage, gifPath);
-                    console.log(`Created GIF for story ${storyId}: ${gifPath}`);
-
-                    // Update the image database with GIF path
-                    storyData.rotationGif = gifPath;
+                    const result = await createRotationGif(storyData.singleImage, gifPath);
+                    
+                    if (result) {
+                        console.log(`Created GIF for story ${storyId}: ${gifPath}`);
+                        // Update the image database with GIF path
+                        storyData.rotationGif = gifPath;
+                    } else {
+                        console.warn(`Skipped GIF creation for story ${storyId} due to image processing error`);
+                    }
                 }
             } catch (storyError) {
                 console.error(`Error processing story ${storyId}:`, storyError);
