@@ -119,8 +119,23 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
             return null;
         }
 
-        const buffer = Buffer.from(base64String, 'base64');
+        // Clean and validate base64 string
+        const cleanedBase64 = cleanBase64Response(base64String);
+        if (!cleanedBase64) {
+            console.warn('Invalid base64 data');
+            ctx.putImageData(fallbackImageData, 0, y);
+            return null;
+        }
+
+        const buffer = Buffer.from(cleanedBase64, 'base64');
         
+        // Validate minimum PNG size
+        if (buffer.length < 40) { // Minimum size for a valid PNG
+            console.warn('PNG data too small');
+            ctx.putImageData(fallbackImageData, 0, y);
+            return null;
+        }
+
         // Early validation of PNG header
         const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
         if (buffer.slice(0, 8).compare(pngHeader) !== 0) {
@@ -135,13 +150,14 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
         } catch (error) {
             console.warn(`PNG parsing error:`, error.message);
             ctx.putImageData(fallbackImageData, 0, y);
-            return null;
+            return prevRowBase64 || null;
         }
 
+        // Additional dimension validation
         if (png.width !== IMAGE_WIDTH || png.height !== 1) {
             console.warn(`Invalid dimensions: ${png.width}x${png.height}`);
             ctx.putImageData(fallbackImageData, 0, y);
-            return null;
+            return prevRowBase64 || null;
         }
 
         const imageData = new ImageData(new Uint8ClampedArray(png.data), png.width, png.height);
@@ -151,23 +167,12 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
             global.gc();
         }
 
-        return base64String;
+        return cleanedBase64;
     } catch (error) {
-        console.warn(`Warning: Row ${y + 1} processing failed:`, error.message);
-
-        if (prevRowBase64) {
-          try {
-              return await processRow(prevRowBase64, ctx, y, null);
-          } catch (retryError) {
-              console.warn(`Fallback failed - using white pixel row`, retryError)
-          }
-      }
-
-        // Create and draw a white row to fallback
+        console.warn(`Row ${y + 1} processing failed:`, error.message);
         const fallbackImageData = await createWhiteRowImageData();
         ctx.putImageData(fallbackImageData, 0, y);
-        
-        return null;
+        return prevRowBase64 || null;
     }
 }
 
