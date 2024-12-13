@@ -224,13 +224,25 @@ async function run() {
     let updatedStories = await updateStoryStatus(stories, userStoryID, "In Progress");
     await writeUserStories(updatedStories);
 
-     const singleBase64 = await generateImage(userStoryText);
-   
-    const imageDatabase = await readImageDatabase();
-    imageDatabase[userStoryID] = {
-        singleImage: singleBase64
-    };
-    await writeImageDatabase(imageDatabase);
+    try {
+        const singleBase64 = await generateImage(userStoryText);
+        if (!singleBase64) {
+            throw new Error('Failed to generate image');
+        }
+
+        const imageDatabase = await readImageDatabase();
+        imageDatabase[userStoryID] = {
+            singleImage: singleBase64,
+            timestamp: Date.now()  // Add timestamp for tracking
+        };
+        await writeImageDatabase(imageDatabase);
+    } catch (error) {
+        console.error('Error generating/saving image:', error);
+        // Update story status to error
+        updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Error");
+        await writeUserStories(updatedStories);
+        return;
+    }
     const updatedImageDatabase = await readImageDatabase();
     console.log("Updated Image Database:", updatedImageDatabase); // added console log
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
