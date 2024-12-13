@@ -194,3 +194,28 @@ app.get('/user-stories', async (req, res) => {
     const stories = await readUserStories();
     res.json(stories);
 });
+app.get('/test-gif', (req, res) => {
+    res.sendFile(__dirname + '/public/test_gif.html');
+});
+app.get('/get-all-gif-data', async (req, res) => {
+    try {
+        const data = await fs.readFile(imageDatabaseFile, 'utf-8');
+        const lines = data.trim().split('\n');
+        let allBase64Strings = [];
+        for (const line of lines) {
+            const match = line.match(/base64_strings: (\[.*?\])/);
+            if (match && match[1]) {
+                try {
+                    const base64Strings = JSON.parse(match[1]);
+                    allBase64Strings = allBase64Strings.concat(base64Strings);
+                } catch (e) {
+                    console.error("Could not parse base64 strings", e)
+                }
+            }
+        }
+        res.json({ base64Strings: allBase64Strings });
+    } catch (error) {
+        console.error("Failed to read image database", error);
+        res.status(500).json({ error: "Failed to read image database" });
+    }
+});

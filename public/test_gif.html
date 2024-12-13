@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test GIF Display</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        #gif-container {
+            margin-top: 20px;
+        }
+        #gif-container img {
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test GIF Display</h1>
+    <div id="gif-container">
+        <!-- GIF will be displayed here -->
+    </div>
+    <script>
+        async function fetchAndDisplayGif() {
+            try {
+                const response = await fetch('/get-all-gif-data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data && data.base64Strings && data.base64Strings.length > 0) {
+                    const gifContainer = document.getElementById('gif-container');
+                    const gif = document.createElement('img');
+                    gif.src = `image/gif;base64,${data.base64Strings.join('')}`;
+                    gifContainer.appendChild(gif);
+                } else {
+                    console.error("No GIF data found");
+                    const gifContainer = document.getElementById('gif-container');
+                    gifContainer.textContent = "No GIF data found";
+                }
+            } catch (error) {
+                console.error("Failed to fetch GIF ", error);
+                const gifContainer = document.getElementById('gif-container');
+                gifContainer.textContent = "Failed to fetch GIF data";
+            }
+        }
+        fetchAndDisplayGif();
+    </script>
+</body>
+</html>
