@@ -4,9 +4,9 @@ const {
     HarmBlockThreshold,
 } = require("@google/generative-ai");
 
-const INITIAL_TIMEOUT = 10; // 10 seconds initial timeout
+const INITIAL_TIMEOUT = 30; // 30 seconds initial timeout
 const MAX_RETRIES = 3;
-const BACKOFF_MULTIPLIER = 1.5;
+const BACKOFF_MULTIPLIER = 2;
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas'); // Using node-canvas for image manipulation
@@ -26,18 +26,19 @@ const model = genAI.getGenerativeModel({
 });
 
 const generationConfig = {
-    temperature: 0.7,  // Reduced from 1.0
-    topP: 0.8,        // Reduced from 0.95
+    temperature: 0.4,  // Reduce from 0.7 to get more consistent outputs
+    topP: 0.8,
     topK: 40,
-    maxOutputTokens: 2048,  // Reduced from 8192 since we only need base64 output
+    maxOutputTokens: 1024,  // Reduce since we only need one row of pixels
 };
 
 const imageWidth = 256; // Define the desired image dimensions
 const imageHeight = 256;
 
-const systemPrompt = `You are an image generator that creates base64 encoded pixel rows.
-Each row must be exactly ${imageWidth} pixels wide.
-Output only the base64 string.`;
+const systemPrompt = `You are an image generator that creates base64 encoded PNG data for single pixel rows.
+Each row must be exactly ${imageWidth} pixels wide and 1 pixel tall.
+Output only the base64 string, no other text.
+The base64 string should represent a valid PNG image.`;
 
 async function run() {
     function isValidBase64(str) {
@@ -91,12 +92,23 @@ async function run() {
                     } catch (error) {
                         retries++;
                         if (retries < MAX_RETRIES) {
-                            console.warn(`Attempt ${retries} timed out after ${timeout}s, retrying...`);
+                            console.warn(`Attempt ${retries} timed out after ${timeout}s, waiting before retry...`);
+                            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second pause between retries
                             timeout *= BACKOFF_MULTIPLIER;
                         } else {
-                            console.warn("Max retries reached - using blank row");
-                            ctx.fillStyle = 'white';
-                            ctx.fillRect(0, i, imageWidth, 1);
+                            console.warn("Max retries reached - using previous row or blank");
+                            if (prevRowBase64) {
+                                try {
+                                    const image = await loadImage(`data:image/png;base64,${prevRowBase64}`);
+                                    ctx.drawImage(image, 0, i, imageWidth, 1);
+                                } catch {
+                                    ctx.fillStyle = 'white';
+                                    ctx.fillRect(0, i, imageWidth, 1);
+                                }
+                            } else {
+                                ctx.fillStyle = 'white';
+                                ctx.fillRect(0, i, imageWidth, 1);
+                            }
                             break;
                         }
                     }
