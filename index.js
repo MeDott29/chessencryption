@@ -201,11 +201,10 @@ async function run() {
         singleImage: singleBase64
     };
     await writeImageDatabase(imageDatabase);
-      const updatedImageDatabase = await readImageDatabase();
+    const updatedImageDatabase = await readImageDatabase();
         console.log("Updated Image Database:", updatedImageDatabase); // added console log
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
     await writeUserStories(updatedStories);
-    const updatedImageDatabase = await readImageDatabase();
     const storedImageData = updatedImageDatabase[userStoryID];
         // Send data to client through web sockets
         wss.clients.forEach(client => {
