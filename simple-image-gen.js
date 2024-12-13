@@ -73,7 +73,8 @@ async function processImageRow(base64String, ctx, y) {
         return new Promise((resolve, reject) => {
             const png = new PNG({
                 filterType: -1,
-                inputColorType: 6  // RGBA
+                inputColorType: 6,  // RGBA
+                checkCRC: false     // Disable CRC checking
             });
 
             png.parse(Buffer.from(cleanedBase64, 'base64'), (error, data) => {
@@ -158,7 +159,8 @@ async function generateImage(prompt = "a majestic mountain landscape") {
                 } catch (error) {
                     attempts++;
                     console.warn(`Attempt ${attempts} failed:`, error.message);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    console.warn('Error details:', error);
+                    await new Promise(resolve => setTimeout(resolve, 2000 * attempts)); // Exponential backoff
                 }
             }
 
