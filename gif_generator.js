@@ -3,61 +3,81 @@ const { createCanvas, loadImage } = require('canvas');
 const GIFEncoder = require('gifencoder');
 
 async function base64ToImage(base64String) {
-    // Remove any potential data URI prefix and whitespace
-    const base64Data = base64String.replace(/^data:image\/\w+;base64,/, '').trim();
-    
-    // Create a buffer from the base64 string
-    const imageBuffer = Buffer.from(base64Data, 'base64');
-    
-    // Load the image using canvas
-    return await loadImage(imageBuffer);
+    try {
+        // Remove any potential data URI prefix and whitespace
+        const base64Data = base64String.replace(/^data:image\/\w+;base64,/, '').trim();
+        
+        // Create a buffer from the base64 string
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        // Log image buffer size for debugging
+        console.log(`Image buffer size: ${imageBuffer.length} bytes`);
+        
+        // Load the image using canvas with error handling
+        return await loadImage(imageBuffer);
+    } catch (error) {
+        console.error('Error converting base64 to image:', error);
+        throw error;
+    }
 }
 
 async function createRotationGif(imageData, outputPath, options = {}) {
-    const {
-        width = 64,
-        height = 64,
-        frames = 8,
-        duration = 100 // milliseconds per frame
-    } = options;
+    try {
+        const {
+            width = 64,
+            height = 64,
+            frames = 8,
+            duration = 100 // milliseconds per frame
+        } = options;
 
-    // Create GIF encoder
-    const encoder = new GIFEncoder(width, height);
-    encoder.start();
-    encoder.setRepeat(0);   // 0 for repeat, -1 for no repeat
-    encoder.setDelay(duration);  // frame delay in ms
-    encoder.setQuality(10); // image quality. 10 is default
+        // Create GIF encoder
+        const encoder = new GIFEncoder(width, height);
+        encoder.start();
+        encoder.setRepeat(0);   // 0 for repeat, -1 for no repeat
+        encoder.setDelay(duration);  // frame delay in ms
+        encoder.setQuality(10); // image quality. 10 is default
 
-    // Create canvas
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+        // Create canvas
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
 
-    // Load the base image
-    const image = await base64ToImage(imageData);
+        // Load the base image
+        const image = await base64ToImage(imageData);
 
-    // Create rotation frames
-    for (let i = 0; i < frames; i++) {
-        ctx.clearRect(0, 0, width, height);
-        
-        // Rotate the image
-        ctx.save();
-        ctx.translate(width/2, height/2);
-        ctx.rotate((i * Math.PI * 2) / frames);
-        ctx.drawImage(image, -width/2, -height/2, width, height);
-        ctx.restore();
+        // Create rotation frames
+        for (let i = 0; i < frames; i++) {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Rotate the image
+            ctx.save();
+            ctx.translate(width/2, height/2);
+            ctx.rotate((i * Math.PI * 2) / frames);
+            
+            // Scale down the image to ensure it fits
+            const scale = Math.min(width / image.width, height / image.height);
+            const scaledWidth = image.width * scale;
+            const scaledHeight = image.height * scale;
+            
+            ctx.drawImage(image, -scaledWidth/2, -scaledHeight/2, scaledWidth, scaledHeight);
+            ctx.restore();
 
-        // Add frame to encoder
-        encoder.addFrame(ctx);
+            // Add frame to encoder
+            encoder.addFrame(ctx);
+        }
+
+        // Finish the GIF
+        encoder.finish();
+
+        // Write the GIF to file
+        const buffer = encoder.out.getData();
+        await fs.writeFile(outputPath, buffer);
+
+        console.log(`Created GIF: ${outputPath}, size: ${buffer.length} bytes`);
+        return outputPath;
+    } catch (error) {
+        console.error('Error creating rotation GIF:', error);
+        throw error;
     }
-
-    // Finish the GIF
-    encoder.finish();
-
-    // Write the GIF to file
-    const buffer = encoder.out.getData();
-    await fs.writeFile(outputPath, buffer);
-
-    return outputPath;
 }
 
 async function processUserStoryImages() {
@@ -71,13 +91,18 @@ async function processUserStoryImages() {
 
         // Process each user story with an image
         for (const [storyId, storyData] of Object.entries(imageDatabase)) {
-            if (storyData.singleImage) {
-                const gifPath = `public/gifs/story_${storyId}_rotation.gif`;
-                await createRotationGif(storyData.singleImage, gifPath);
-                console.log(`Created GIF for story ${storyId}: ${gifPath}`);
+            try {
+                if (storyData.singleImage) {
+                    const gifPath = `public/gifs/story_${storyId}_rotation.gif`;
+                    await createRotationGif(storyData.singleImage, gifPath);
+                    console.log(`Created GIF for story ${storyId}: ${gifPath}`);
 
-                // Optionally, update the image database with GIF path
-                storyData.rotationGif = gifPath;
+                    // Update the image database with GIF path
+                    storyData.rotationGif = gifPath;
+                }
+            } catch (storyError) {
+                console.error(`Error processing story ${storyId}:`, storyError);
+                // Continue processing other stories even if one fails
             }
         }
 
