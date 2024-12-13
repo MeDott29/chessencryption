@@ -51,8 +51,13 @@ async function generateUserStory() {
     The response should be formatted as a JSON object with the keys "userStory", "description".`
     try {
         const result = await chatSession.sendMessage(prompt);
-        const response = JSON.parse(result.response.text());
-        return response;
+        try {
+            const response = JSON.parse(result.response.text());
+            return response;
+        } catch (error) {
+            console.error("Failed to parse JSON response", error);
+            return null;
+        }
     } catch (error) {
         console.error("Failed to generate user story", error)
         return null;
@@ -78,7 +83,12 @@ async function generateBase64FrameData() {
     }
 }
 async function appendNewUserStory() {
-    const {userStory, description} = await generateUserStory();
+    const userStoryData = await generateUserStory();
+    if (!userStoryData) {
+        console.error("Could not generate user story data");
+        return;
+    }
+    const {userStory, description} = userStoryData;
     const base64Strings = await generateBase64FrameData();
     if (!userStory || !description || !base64Strings) {
         console.error("Could not generate all required data for user story")
