@@ -144,9 +144,18 @@ async function updateStoryStatus(stories, storyID, newStatus) {
 async function readImageDatabase() {
     try {
         const data = await fs.readFile(imageDatabaseFile, 'utf-8');
+        // If file is empty or just whitespace, return empty object
+        if (!data || data.trim() === '') {
+            return {};
+        }
         return JSON.parse(data);
     } catch (error) {
-        console.error('Error reading image database file, creating new database:', error);
+        if (error.code === 'ENOENT') {
+            // File doesn't exist, create it with empty object
+            await fs.writeFile(imageDatabaseFile, '{}');
+            return {};
+        }
+        console.error('Error reading image database file:', error);
         return {};
     }
 }
