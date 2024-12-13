@@ -53,6 +53,11 @@ async function updateImagePreview(canvas, previewPath) {
 }
 
 function cleanBase64Response(response) {
+    if (!response || typeof response !== 'string') {
+        console.warn('Invalid response type');
+        return '';
+    }
+
     // Remove any non-base64 characters and ensure proper base64 format
     let cleaned = response.trim()
         .replace(/^["']|["']$/g, '')  // Remove quotes
@@ -60,13 +65,30 @@ function cleanBase64Response(response) {
         .replace(/[\r\n\s]/g, '')  // Remove whitespace
         .replace(/[^A-Za-z0-9+/=]/g, '');  // Keep only valid base64 chars
     
+    // Validate minimum length for a PNG in base64
+    if (cleaned.length < 50) { // Minimum size for a valid PNG in base64
+        console.warn('Base64 string too short');
+        return '';
+    }
+
     // Ensure proper base64 padding
     const padding = cleaned.length % 4;
     if (padding) {
         cleaned += '='.repeat(4 - padding);
     }
-    
-    return cleaned;
+
+    // Validate base64 format
+    try {
+        const decoded = Buffer.from(cleaned, 'base64');
+        if (decoded.length < 40) { // Minimum size for a valid PNG
+            console.warn('Decoded PNG data too small');
+            return '';
+        }
+        return cleaned;
+    } catch (error) {
+        console.warn('Invalid base64 format:', error.message);
+        return '';
+    }
 }
 // Function to parse a PNG buffer with validation
 function parsePngBuffer(buffer) {
@@ -273,7 +295,13 @@ async function run() {
 Each row must be exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.
 Output ONLY the raw base64 string with no formatting, quotes, or additional text.
 Do not include any prefix like 'data:image/png;base64,'.
-The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH}x1 pixels.`;
+The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH}x1 pixels.
+The PNG must be properly formatted with:
+- Complete PNG header
+- All required chunks (IHDR, IDAT, IEND)
+- Valid IDAT compression
+- No optional chunks
+Do not truncate or modify the base64 output in any way.`;
 
 
     const chatSession = model.startChat({
