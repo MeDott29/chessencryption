@@ -7,6 +7,7 @@ const fs = require('node:fs/promises');
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const { appendNewUserStory } = require('./user_story_generator');
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -77,6 +78,13 @@ async function readUserStories() {
                 currentStory.tags = line.split(': ')[1];
             } else if (line.startsWith('Status:')) {
                 currentStory.status = line.split(': ')[1];
+            } else if (line.startsWith('Base64Strings:')) {
+                try {
+                    currentStory.base64Strings = JSON.parse(line.split(': ')[1]);
+                } catch (e) {
+                    console.error("Could not parse base64 strings", e)
+                    currentStory.base64Strings = [];
+                }
             }
         }
            if (currentStory.ID) {
@@ -137,6 +145,8 @@ async function run() {
     let nextStory = await findNextPendingStory(stories);
     if (!nextStory) {
       console.log('No pending user stories found.');
+      // Generate a new user story if none are pending
+      await appendNewUserStory();
       return;
     }
     const userStoryID = nextStory.ID;
