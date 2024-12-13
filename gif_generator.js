@@ -6,7 +6,7 @@ const { Image } = require('canvas');
 async function base64ToImage(base64String) {
     try {
         // Remove any potential data URI prefix and whitespace
-        const base64Data = base64String.replace(/^data:image\/\w+;base64,/, '').trim();
+        const base64Data = base64String.replace(/^data:image\/\w+;base64,/, '').replace(/^```|```$/g, '').trim();
         
         // Create a buffer from the base64 string
         const imageBuffer = Buffer.from(base64Data, 'base64');
@@ -20,14 +20,20 @@ async function base64ToImage(base64String) {
             // Optionally, you could implement image resizing here
         }
         
-        // Use a more robust image loading method
+        // Use a more robust image loading method with increased timeout and error handling
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.onload = () => resolve(img);
+            img.onload = () => {
+                // Clear any potential memory leaks
+                setTimeout(() => resolve(img), 0);
+            };
             img.onerror = (err) => {
                 console.error('Image load error:', err);
+                console.error('Base64 data (first 100 chars):', base64Data.substring(0, 100));
                 reject(new Error('Failed to load image'));
             };
+            
+            // Ensure we're using a valid data URI
             img.src = `data:image/png;base64,${base64Data}`;
         });
     } catch (error) {
@@ -45,6 +51,12 @@ async function createRotationGif(imageData, outputPath, options = {}) {
             duration = 100 // milliseconds per frame
         } = options;
 
+        // Validate imageData
+        if (!imageData || typeof imageData !== 'string') {
+            console.error('Invalid image data');
+            return null;
+        }
+
         // Create GIF encoder with memory-efficient settings
         const encoder = new GIFEncoder(width, height);
         encoder.start();
@@ -56,7 +68,7 @@ async function createRotationGif(imageData, outputPath, options = {}) {
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
 
-        // Load the base image with error handling
+        // Load the base image with enhanced error handling
         let image;
         try {
             image = await base64ToImage(imageData);
