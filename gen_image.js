@@ -39,7 +39,6 @@ Rules:
 4. Return empty string "" if failed
 
 Example of desired length: "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4"`;
-`;
 
 async function run() {
     function isValidBase64(str) {
@@ -74,7 +73,7 @@ async function run() {
     const startTime = performance.now();
     try {
         for (let i = 0; i < imageHeight; i++) {
-            const prompt = `Generate a base64 encoded image row representing row number ${i+1} of ${imageHeight} for ${userStory}. The row should be exactly ${imageWidth} pixels wide. Make the base64 string as small as possible while maintaining image quality.`;
+            const prompt = `Generate row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Return ONLY shortest possible base64.`;
             console.log(`Generating row ${i + 1}...`);
             
             const messageStartTime = performance.now();
@@ -117,7 +116,14 @@ async function run() {
 
 
     } catch (error) {
+        if (error.message === 'Timeout') {
+            console.warn("Timeout occurred - using blank row");
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, i, imageWidth, 1);
+            continue;
+        }
         console.error("Error during image generation:", error);
+        break;
     }
 
      const endTime = performance.now();
