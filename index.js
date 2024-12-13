@@ -191,7 +191,15 @@ async function generateUserStory() {
     return newStory;
 }
 async function generateImage(userStory) {
-    const prompt2_0 = `Create a single 64x64 pixel image, in base64 encoding, without any other text, that visually represents the following user story: "${userStory}". Return ONLY the base64 string without any markdown formatting or additional text.`
+    const prompt2_0 = `Create a single 64x64 pixel image that visually represents this user story: "${userStory}".
+Return ONLY a valid base64-encoded PNG image string.
+- Do not include any markdown formatting
+- Do not include "data:image" prefix
+- Do not include any explanation text
+- The string should only contain valid base64 characters (A-Z, a-z, 0-9, +, /, and = for padding)
+- The string should be at least 1000 characters long to represent a valid 64x64 image
+- The output should be a single continuous line of base64 characters`;
+
     const result2_0 = await model2_0.generateContent(prompt2_0);
     let singleBase64 = result2_0.response.text().trim();
     
@@ -199,6 +207,7 @@ async function generateImage(userStory) {
     const { validateAndNormalizeBase64 } = require('./gif_generator');
     const validatedBase64 = validateAndNormalizeBase64(singleBase64);
     if (!validatedBase64) {
+        console.log("Raw response from model:", singleBase64); // Add this for debugging
         throw new Error('Generated image data failed validation');
     }
 
