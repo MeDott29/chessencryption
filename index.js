@@ -241,16 +241,16 @@ Return ONLY a valid base64-encoded PNG image string.
 async function run() {
     const stories = await readUserStories();
     if (!stories || stories.length === 0) {
-      console.log("No user stories found, generating a new one.");
+        console.log("No user stories found, generating a new one.");
         await generateUserStory();
         return;
     }
     let nextStory = await findNextPendingStory(stories);
     if (!nextStory) {
-      console.log('No pending user stories found.');
+        console.log('No pending user stories found.');
         console.log("Generating new user story...")
-       await generateUserStory();
-       return;
+        await generateUserStory();
+        return;
     }
     const userStoryID = nextStory.ID;
     const userStoryText = nextStory.userStory;
@@ -259,19 +259,21 @@ async function run() {
     await writeUserStories(updatedStories);
 
     try {
+        // Generate the base image
         const singleBase64 = await generateImage(userStoryText);
         if (!singleBase64) {
             throw new Error('Failed to generate image');
         }
 
+        // Save to image database
         const imageDatabase = await readImageDatabase();
         imageDatabase[userStoryID] = {
             singleImage: singleBase64,
-            timestamp: Date.now()  // Add timestamp for tracking
+            timestamp: Date.now()
         };
         await writeImageDatabase(imageDatabase);
 
-        // Update the story with the base64 image
+        // Update story with base64 image
         updatedStories = updatedStories.map(story => {
             if (story.ID === userStoryID) {
                 return { ...story, base64Image: singleBase64 };
@@ -279,37 +281,36 @@ async function run() {
             return story;
         });
         await writeUserStories(updatedStories);
+
+        // Generate GIF immediately after successful image generation
+        console.log("Generating GIF for story", userStoryID);
+        await processUserStoryImages();
+
+        // Update status to done
+        updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
+        await writeUserStories(updatedStories);
+
+        // Send data to client
+        const storedImageData = imageDatabase[userStoryID];
+        wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                console.log('sending image data to client')
+                client.send(JSON.stringify({
+                    type: "image",
+                    userStoryID: userStoryID,
+                    singleImage: storedImageData.singleImage,
+                    status: "Done"
+                }));
+            }
+        });
+
     } catch (error) {
-        console.error('Error generating/saving image:', error);
-        // Update story status to error
+        console.error('Error in processing:', error);
         updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Error");
         await writeUserStories(updatedStories);
-        return;
     }
-    const updatedImageDatabase = await readImageDatabase();
-    console.log("Updated Image Database:", updatedImageDatabase); // added console log
-    updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
-    await writeUserStories(updatedStories);
-    const storedImageData = updatedImageDatabase[userStoryID];
-        // Send data to client through web sockets
-        wss.clients.forEach(client => {
-          if (client.readyState === WebSocket.OPEN) {
-              console.log('sending image data to client') //added console log
-            client.send(JSON.stringify({
-                type:"image",
-                userStoryID: userStoryID,
-                singleImage: storedImageData.singleImage,
-                status: "Done"
-            }));
-          } else {
-               console.log('Client connection not open') //added console log
-          }
-        });
 }
-setInterval(async () => {
-    await run();
-    await processUserStoryImages(); // Generate GIFs after processing stories
-}, 10000); // Run every ten seconds
+setInterval(run, 10000); // Run every ten seconds
 
 app.get('/user-stories', async (req, res) => {
     const stories = await readUserStories();

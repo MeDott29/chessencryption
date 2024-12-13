@@ -165,36 +165,39 @@ async function createRotationGif(imageData, outputPath, options = {}) {
 
 async function processUserStoryImages() {
     try {
+        console.log("Starting GIF generation process...");
+        
         // Read the image database
         const imageDatabaseRaw = await fs.readFile('image_database.json', 'utf-8');
         const imageDatabase = JSON.parse(imageDatabaseRaw);
 
         // Create output directory if it doesn't exist
         await fs.mkdir('public/gifs', { recursive: true });
-
+        
         // Process each user story with an image
         for (const [storyId, storyData] of Object.entries(imageDatabase)) {
             try {
+                console.log(`Processing GIF for story ${storyId}...`);
                 if (storyData.singleImage) {
                     const gifPath = `public/gifs/story_${storyId}_rotation.gif`;
                     const result = await createRotationGif(storyData.singleImage, gifPath);
                     
                     if (result) {
-                        console.log(`Created GIF for story ${storyId}: ${gifPath}`);
+                        console.log(`Successfully created GIF for story ${storyId}: ${gifPath}`);
                         // Update the image database with GIF path
                         storyData.rotationGif = gifPath;
                     } else {
-                        console.warn(`Skipped GIF creation for story ${storyId} due to image processing error`);
+                        console.warn(`Failed to create GIF for story ${storyId}`);
                     }
                 }
             } catch (storyError) {
-                console.error(`Error processing story ${storyId}:`, storyError);
-                // Continue processing other stories even if one fails
+                console.error(`Error processing GIF for story ${storyId}:`, storyError);
             }
         }
 
         // Write updated database
         await fs.writeFile('image_database.json', JSON.stringify(imageDatabase, null, 2));
+        console.log("Completed GIF generation process");
     } catch (error) {
         console.error('Error processing user story images:', error);
     }
