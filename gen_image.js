@@ -73,57 +73,59 @@ async function run() {
     const startTime = performance.now();
     try {
         for (let i = 0; i < imageHeight; i++) {
-            const prompt = `Generate row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Return ONLY shortest possible base64.`;
-            console.log(`Generating row ${i + 1}...`);
-            
-            const messageStartTime = performance.now();
-            const result = await Promise.race([
-                chatSession.sendMessage(prompt),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout')), TIMEOUT_SECONDS * 1000)
-                )
-            ]);
-            const messageEndTime = performance.now();
-            console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
+            try {
+                const prompt = `Generate row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Return ONLY shortest possible base64.`;
+                console.log(`Generating row ${i + 1}...`);
+                
+                const messageStartTime = performance.now();
+                const result = await Promise.race([
+                    chatSession.sendMessage(prompt),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout')), TIMEOUT_SECONDS * 1000)
+                    )
+                ]);
+                const messageEndTime = performance.now();
+                console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
 
-            let base64String = result.response.text().trim();
-            
-            // Validate base64 string
-            if (base64String && isValidBase64(base64String)) {
-                try {
-                    const image = await loadImage(`data:image/png;base64,${base64String}`);
-                    ctx.drawImage(image, 0, i, imageWidth, 1); // Draw just one row
-                    prevRowBase64 = base64String;
-                } catch (imgError) {
-                    console.warn(`Warning: Could not process row ${i+1}, using blank row instead`);
+                let base64String = result.response.text().trim();
+                
+                // Validate base64 string
+                if (base64String && isValidBase64(base64String)) {
+                    try {
+                        const image = await loadImage(`data:image/png;base64,${base64String}`);
+                        ctx.drawImage(image, 0, i, imageWidth, 1); // Draw just one row
+                        prevRowBase64 = base64String;
+                    } catch (imgError) {
+                        console.warn(`Warning: Could not process row ${i+1}, using blank row instead`);
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, i, imageWidth, 1);
+                    }
+                } else {
+                    console.warn(`Warning: Invalid base64 for row ${i+1}, using blank row`);
                     ctx.fillStyle = 'white';
                     ctx.fillRect(0, i, imageWidth, 1);
                 }
-            } else {
-                console.warn(`Warning: Invalid base64 for row ${i+1}, using blank row`);
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, i, imageWidth, 1);
-            }
 
-            // Save progress every 10 rows
-            if (i % 10 === 0 || i === imageHeight - 1) {
-                const imageBuffer = canvas.toBuffer('image/png');
-                fs.writeFileSync(filePath, imageBuffer);
-                console.log(`Progress saved at row ${i+1}`);
+                // Save progress every 10 rows
+                if (i % 10 === 0 || i === imageHeight - 1) {
+                    const imageBuffer = canvas.toBuffer('image/png');
+                    fs.writeFileSync(filePath, imageBuffer);
+                    console.log(`Progress saved at row ${i+1}`);
+                }
+            } catch (error) {
+                if (error.message === 'Timeout') {
+                    console.warn("Timeout occurred - using blank row");
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, i, imageWidth, 1);
+                    continue;
+                }
+                console.error("Error during image generation:", error);
+                break;
             }
         }
-         console.log("All Rows Generated")
-
-
+        console.log("All Rows Generated");
     } catch (error) {
-        if (error.message === 'Timeout') {
-            console.warn("Timeout occurred - using blank row");
-            ctx.fillStyle = 'white';
-            ctx.fillRect(0, i, imageWidth, 1);
-            continue;
-        }
-        console.error("Error during image generation:", error);
-        break;
+        console.error("Fatal error during image generation:", error);
     }
 
      const endTime = performance.now();
