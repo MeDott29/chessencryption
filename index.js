@@ -166,6 +166,7 @@ async function run() {
     if (!nextStory) {
       console.log('No pending user stories found.');
       // Generate a new user story if none are pending
+      console.log("Generating new user story...")
       await appendNewUserStory();
       return;
     }
