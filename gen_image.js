@@ -65,6 +65,10 @@ async function validatePngData(buffer) {
 
 async function processRow(base64String, ctx, y, prevRowBase64) {
     try {
+        // Create a temporary canvas for each row
+        const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
+        const tempCtx = tempCanvas.getContext('2d');
+        
         const buffer = Buffer.from(base64String, 'base64');
         const isValidPng = await validatePngData(buffer);
         
@@ -72,16 +76,34 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
             throw new Error('Invalid PNG data');
         }
 
-        const image = await loadImage(`data:image/png;base64,${base64String}`);
+        // Load image with explicit dimensions
+        const image = new Image();
+        image.width = IMAGE_WIDTH;
+        image.height = 1;
         
+        await new Promise((resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+            image.src = `data:image/png;base64,${base64String}`;
+        });
+
         if (image.width !== IMAGE_WIDTH || image.height !== 1) {
             throw new Error(`Invalid dimensions: ${image.width}x${image.height}`);
         }
 
-        ctx.drawImage(image, 0, y, IMAGE_WIDTH, 1);
+        // Draw to temp canvas first
+        tempCtx.drawImage(image, 0, 0, IMAGE_WIDTH, 1);
         
-        // Clear image data
+        // Copy from temp canvas to main canvas
+        ctx.drawImage(tempCanvas, 0, y, IMAGE_WIDTH, 1);
+        
+        // Clear references
         image.src = '';
+        tempCanvas.width = 0;
+        tempCanvas.height = 0;
+        
+        if (global.gc) global.gc();
+        
         return base64String;
     } catch (error) {
         console.warn(`Warning: Row ${y + 1} processing failed:`, error.message);
@@ -126,9 +148,10 @@ async function run() {
 
     // Initialize canvas
     const canvas = createCanvas(IMAGE_WIDTH, IMAGE_HEIGHT);
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha channel
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
+    ctx.imageSmoothingEnabled = false; // Disable image smoothing
 
     const chatSession = model.startChat({
         generationConfig,
