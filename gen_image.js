@@ -133,7 +133,6 @@ async function run() {
                     }
                 }
             }
-        }
         console.log("All Rows Generated");
 
         const endTime = performance.now();
