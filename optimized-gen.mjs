@@ -58,35 +58,50 @@ function cleanBase64Response(response) {
         return '';
     }
 
-    // Remove any non-base64 characters and ensure proper base64 format
-    let cleaned = response.trim()
-        .replace(/^["']|["']$/g, '')  // Remove quotes
-        .replace(/^data:image\/png;base64,/, '')  // Remove data URI prefix
-        .replace(/[\r\n\s]/g, '')  // Remove whitespace
-        .replace(/[^A-Za-z0-9+/=]/g, '');  // Keep only valid base64 chars
-    
-    // Validate minimum length for a PNG in base64
-    if (cleaned.length < 50) { // Minimum size for a valid PNG in base64
-        console.warn('Base64 string too short');
-        return '';
-    }
-
-    // Ensure proper base64 padding
-    const padding = cleaned.length % 4;
-    if (padding) {
-        cleaned += '='.repeat(4 - padding);
-    }
-
-    // Validate base64 format
     try {
+        // Remove any non-base64 characters and ensure proper base64 format
+        let cleaned = response.trim()
+            .replace(/^["']|["']$/g, '')  // Remove quotes
+            .replace(/^data:image\/png;base64,/, '')  // Remove data URI prefix
+            .replace(/[\r\n\s]/g, '')  // Remove whitespace
+            .replace(/[^A-Za-z0-9+/=]/g, '');  // Keep only valid base64 chars
+        
+        // Validate minimum length for a PNG in base64
+        if (cleaned.length < 100) { // Increased minimum size for valid PNG
+            console.warn('Base64 string too short');
+            return '';
+        }
+
+        // Ensure proper base64 padding
+        const padding = cleaned.length % 4;
+        if (padding) {
+            cleaned += '='.repeat(4 - padding);
+        }
+
+        // Validate base64 format and PNG structure
         const decoded = Buffer.from(cleaned, 'base64');
-        if (decoded.length < 40) { // Minimum size for a valid PNG
+        if (decoded.length < 67) { // Minimum size for valid PNG with IHDR
             console.warn('Decoded PNG data too small');
             return '';
         }
+
+        // Verify PNG signature
+        const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+        if (Buffer.compare(decoded.slice(0, 8), pngSignature) !== 0) {
+            console.warn('Invalid PNG signature');
+            return '';
+        }
+
+        // Verify IHDR chunk
+        const ihdrLength = decoded.readUInt32BE(8);
+        if (ihdrLength !== 13) {
+            console.warn('Invalid IHDR chunk length');
+            return '';
+        }
+
         return cleaned;
     } catch (error) {
-        console.warn('Invalid base64 format:', error.message);
+        console.warn('Base64/PNG validation error:', error.message);
         return '';
     }
 }
@@ -101,15 +116,18 @@ function parsePngBuffer(buffer) {
                 return;
             }
 
-            // Create a new PNG instance with more lenient parsing
+            // Create a new PNG instance with strict parsing
             const png = new PNG({
                 filterType: 4,  // Paeth filter
-                checkCRC: false,  // Disable CRC checks temporarily
+                checkCRC: true,  // Enable CRC checks
                 skipRescale: true,
                 fixTransparency: true,
                 colorType: 6,  // RGBA
                 inputHasAlpha: true,
-                inputColorType: 6
+                inputColorType: 6,
+                deflateLevel: 9,  // Maximum compression
+                deflateStrategy: 3,  // RLE strategy
+                filterType: 4  // Paeth filter
             });
             
             let hasIHDR = false;
@@ -257,24 +275,27 @@ The response must:
 1. Be ONLY the raw base64 string
 2. NOT include 'data:image/png;base64,' prefix
 3. NOT have any quotes, formatting, or additional text
-4. Be a simple RGBA PNG with these exact chunks in order:
-   - PNG signature (89 50 4E 47 0D 0A 1A 0A)
-   - IHDR chunk with:
-     * width=${IMAGE_WIDTH}
-     * height=1
-     * bit depth=8
-     * color type=6 (RGBA)
-     * compression=0
-     * filter=4 (Paeth)
-     * interlace=0
-   - Single IDAT chunk with zlib-compressed RGBA data
-   - IEND chunk (00 00 00 00 49 45 4E 44 AE 42 60 82)
+4. Be a valid RGBA PNG with these exact chunks in order:
+   - PNG signature: exactly 89 50 4E 47 0D 0A 1A 0A
+   - IHDR chunk (length=13):
+     * width=${IMAGE_WIDTH} (4 bytes)
+     * height=1 (4 bytes)
+     * bit depth=8 (1 byte)
+     * color type=6 (1 byte, RGBA)
+     * compression=0 (1 byte, DEFLATE)
+     * filter=4 (1 byte, Paeth)
+     * interlace=0 (1 byte, none)
+   - Single IDAT chunk with:
+     * DEFLATE compressed RGBA data
+     * Maximum compression level
+     * RLE strategy
+   - IEND chunk: exactly 00 00 00 00 49 45 4E 44 AE 42 60 82
 5. Use these exact settings:
    - No interlacing
    - No color palette
    - No ancillary chunks
-   - Paeth filtering (type 4)
-   - Standard zlib compression`;
+   - Paeth filtering only
+   - Maximum DEFLATE compression`;
     
     if (previousRow) {
         prompt += ` Use this previous row's colors for continuity: ${previousRow}`;
