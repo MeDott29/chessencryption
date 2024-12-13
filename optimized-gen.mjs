@@ -116,71 +116,39 @@ function parsePngBuffer(buffer) {
                 return;
             }
 
-            // Create a new PNG instance with strict parsing
+            // Create a new PNG instance with simplified parsing
             const png = new PNG({
-                filterType: 4,  // Paeth filter
-                checkCRC: true,  // Enable CRC checks
+                checkCRC: false,  // Disable built-in CRC checks
                 skipRescale: true,
-                fixTransparency: true,
-                colorType: 6,  // RGBA
-                inputHasAlpha: true,
-                inputColorType: 6,
-                deflateLevel: 9,  // Maximum compression
-                deflateStrategy: 3,  // RLE strategy
-                filterType: 4  // Paeth filter
+                filterType: -1,   // Auto-detect filter
+                inputColorType: 6  // RGBA
             });
-            
-            let hasIHDR = false;
-            let hasIDAT = false;
-            let hasIEND = false;
-            
-            // Add chunk handler to validate chunk types
-            png.on('metadata', (metadata) => {
-                hasIHDR = true;
-                if (metadata.width !== IMAGE_WIDTH || metadata.height !== 1) {
-                    reject(new Error(`Invalid dimensions: ${metadata.width}x${metadata.height}`));
-                }
-            });
-            
-            png.on('data', () => {
-                hasIDAT = true;
-            });
-            
-            png.on('end', () => {
-                hasIEND = true;
-            });
-            
+
             // Add error handler
             png.on('error', (error) => {
                 reject(new Error(`PNG parsing error: ${error.message}`));
             });
-            
+
             // Add parsing complete handler
             png.on('parsed', function() {
-                if (!hasIHDR || !hasIDAT || !hasIEND) {
-                    reject(new Error('Missing required PNG chunks'));
-                    return;
-                }
-                
                 if (this.width !== IMAGE_WIDTH || this.height !== 1) {
                     reject(new Error(`Invalid dimensions: ${this.width}x${this.height}`));
                     return;
                 }
-                
-                // Ensure we have valid RGBA data
+
                 if (!this.data || this.data.length !== IMAGE_WIDTH * 4) {
                     reject(new Error('Invalid pixel data'));
                     return;
                 }
-                
+
                 resolve(this);
             });
-            
-            // Start parsing with timeout
+
+            // Parse with a timeout
             const parseTimeout = setTimeout(() => {
                 reject(new Error('PNG parsing timeout'));
             }, 5000);
-            
+
             png.parse(buffer, (error) => {
                 clearTimeout(parseTimeout);
                 if (error) {
@@ -275,27 +243,14 @@ The response must:
 1. Be ONLY the raw base64 string
 2. NOT include 'data:image/png;base64,' prefix
 3. NOT have any quotes, formatting, or additional text
-4. Be a valid RGBA PNG with these exact chunks in order:
-   - PNG signature: exactly 89 50 4E 47 0D 0A 1A 0A
-   - IHDR chunk (length=13):
-     * width=${IMAGE_WIDTH} (4 bytes)
-     * height=1 (4 bytes)
-     * bit depth=8 (1 byte)
-     * color type=6 (1 byte, RGBA)
-     * compression=0 (1 byte, DEFLATE)
-     * filter=4 (1 byte, Paeth)
-     * interlace=0 (1 byte, none)
-   - Single IDAT chunk with:
-     * DEFLATE compressed RGBA data
-     * Maximum compression level
-     * RLE strategy
-   - IEND chunk: exactly 00 00 00 00 49 45 4E 44 AE 42 60 82
-5. Use these exact settings:
-   - No interlacing
-   - No color palette
-   - No ancillary chunks
-   - Paeth filtering only
-   - Maximum DEFLATE compression`;
+4. Be a valid RGBA PNG with:
+   - Standard PNG signature
+   - IHDR chunk with:
+     * width=${IMAGE_WIDTH}
+     * height=1
+     * RGBA color mode
+   - IDAT chunk with pixel data
+   - IEND chunk`;
     
     if (previousRow) {
         prompt += ` Use this previous row's colors for continuity: ${previousRow}`;
