@@ -13,17 +13,23 @@ const net = require('net');
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const model = genAI.getGenerativeModel({
+// 1.5 Flash Model for Chat
+const model1_5 = genAI.getGenerativeModel({
   model: "gemini-1.5-flash",
 });
 
+// 2.0 Flash Experimental Model for single image generation
+const model2_0 = genAI.getGenerativeModel({
+  model: "gemini-2.0-flash-exp",
+  systemInstruction: "The user will provide a user story, you will provide one 64 by 64 pixel image in base64, without any other text",
+});
 const generationConfig = {
-  temperature: 1,
-  topP: 0.95,
-  topK: 40,
-  maxOutputTokens: 8192,
-  responseMimeType: "text/plain",
-};
+    temperature: 1,
+    topP: 0.95,
+    topK: 40,
+    maxOutputTokens: 8192,
+    responseMimeType: "text/plain",
+  };
 const safetySettings = [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -170,37 +176,45 @@ async function run() {
     console.log(`Processing user story ${userStoryID}`)
     let updatedStories = await updateStoryStatus(stories, userStoryID, "In Progress");
     await writeUserStories(updatedStories);
-    // Generate a simple color array
-    const chatSession = model.startChat({
+    // Generate a simple color array for the GIF using 1.5-flash model
+    const chatSession = model1_5.startChat({
         generationConfig,
         safetySettings,
         history: [],
       });
-      const prompt = `Generate two very small, square images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
-      The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
-      The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
-      The images must be delivered as a base64 strings for GIF frames. No other text is needed.`
+    const prompt = `Generate two very small, square images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
+    The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
+    The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
+    The images must be delivered as a base64 strings for GIF frames. No other text is needed.`
     const result = await chatSession.sendMessage(prompt);
     const base64Strings = result.response.text().split('\n');
+    // Generate single image using the 2.0-flash-exp model
+    const prompt2_0 = `A low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.`
+    const result2_0 = await model2_0.generateContent(prompt2_0);
+    const singleBase64 = result2_0.response.text();
+   
     const imageDatabase = await readImageDatabase();
-    imageDatabase[userStoryID] = base64Strings;
+    imageDatabase[userStoryID] = {
+        gifFrames: base64Strings,
+        singleImage: singleBase64
+    };
     await writeImageDatabase(imageDatabase);
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
     await writeUserStories(updatedStories);
     const updatedImageDatabase = await readImageDatabase();
-    const storedBase64Strings = updatedImageDatabase[userStoryID];
+    const storedImageData = updatedImageDatabase[userStoryID];
         // Send data to client through web sockets
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({
                 type:"image",
                 userStoryID: userStoryID,
-                colorArray:storedBase64Strings,
+                gifFrames: storedImageData.gifFrames,
+                singleImage: storedImageData.singleImage,
                 status: "Done"
             }));
           }
         });
-
 }
 setInterval(async () => {
     await run();

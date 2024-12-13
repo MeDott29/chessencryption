@@ -1,24 +1,60 @@
 ID: 1
-User Story: As a GIF creator, I want a cartoon-style frame showing a cat jumping over a ball, So that I can add it to my funny animal animation.
-Description: The frame depicts a cartoon cat, drawn with simple, bold outlines and filled with solid, flat colors.  The cat is a ginger tabby, with orange and black stripes rendered in broad strokes. Its body is arched, legs fully extended – two front paws reaching forward, two back paws trailing behind.  The cat's expression is one of determined concentration, its eyes wide and slightly squinted, a simple, slightly open mouth suggesting a silent meow. Its tail is a slightly blurry orange streak behind it, indicating motion.  Below the cat, slightly offset to the left, is a large, bright red ball, rendered as a perfect circle. The ball is smooth and shiny, with a subtle highlight indicating a light source from above. The background is a simple, light beige, providing a stark contrast to the orange cat and red ball.  The overall style is clean and childlike, emphasizing clear shapes and bold lines.
-Tags: cartoon, animals, cat, action
-Status: In Progress
+User Story: As a social media manager, I want to create a GIF that celebrates a product launch, so that I can increase engagement on my company's social media channels.
+Description: The GIF frame depicts a sleek, modern product (e.g., a pair of headphones) in the center of the frame, brightly lit and slightly angled to showcase its design.  The background is a vibrant gradient of blues and purples, subtly animated with a slow, almost imperceptible swirling effect.  Confetti, primarily in shades of gold and the brand's primary color (e.g., a deep teal), floats around the product, creating a celebratory atmosphere.  The brand logo is subtly embossed on the product itself, and a small banner at the bottom of the frame reads "NEW PRODUCT LAUNCH!" in a bold, modern font. The overall aesthetic is clean, sophisticated, and celebratory.
+Tags: generated
+Status: Done
 
 ID: 2
-User Story: As a GIF maker, I want a frame depicting a bustling city street at night with a food truck in focus, So that I can have an engaging background for my urban-themed animation.
-Description: A blur of motion encapsulates a vibrant city street at night.  Neon signs cast a kaleidoscopic glow on the rain-slicked pavement, reflecting in the headlights of speeding cars.  The central focus is a bright yellow food truck, its signage a beacon of warmth amidst the urban chill.  A snaking line of eager customers, their faces partially obscured by the movement, eagerly awaits their turn, their silhouettes almost swallowed by the energetic, colorful chaos of the city around them.
-Tags: city, night, urban, food, background
+User Story: As a social media manager, I want to create a short, engaging GIF animation to promote a new product launch, so that I can increase brand awareness and drive traffic to the product page.
+Description: A single frame from the GIF shows a sleek, modern smartphone held in a hand against a blurred background of a city skyline at sunset. The smartphone screen displays a vibrant, close-up image of the new product – a pair of stylish wireless earbuds.  The earbuds are presented in a visually appealing way, perhaps floating slightly above a minimalist product base.  The color palette is consistent with the brand's existing aesthetic, using mostly blues, grays, and a pop of the brand's signature orange accent color on the earbuds themselves. The lighting is soft and even, focusing attention on the product.  A subtle, almost invisible watermark of the brand logo is present in the bottom right corner of the smartphone screen. The hand holding the phone is subtly styled, with a manicured nail barely visible, implying a sophisticated and aspirational target audience.
+Tags: generated
 Status: Done
 
 ID: 3
-User Story: As an animator, I want a close-up frame of a character's face displaying intense surprise, So that I can illustrate a reaction in a humorous or dramatic scene.
-Description: Close-up on a face, sharply in focus against a soft, indistinct, beige blur.  Eyes are wide, pupils dilated, staring directly forward with a look of utter astonishment.  Eyebrows are dramatically arched, almost meeting at the center of the forehead.  The mouth is slightly parted, revealing a small sliver of teeth, a silent gasp frozen mid-breath.  The skin around the eyes is slightly stretched, emphasizing the intensity of the surprise.
-Tags: character, face, emotion, surprise, close-up
+User Story: As a website designer, I want a simple color animation for my button on hover, so that I can improve the user experience and make the button more visually appealing.
+Description: The animation will target a button element. On mouse hover, the button's background color will smoothly transition from its default color (#007bff - a vibrant blue) to a slightly lighter shade (#66a6ff) over a duration of 0.3 seconds.  The transition will use a smooth ease-in-out timing function.  On mouse-out, the background color will smoothly transition back to the original #007bff color, again over 0.3 seconds with an ease-in-out timing function.  No other visual elements of the button (text, border, etc.) will be animated. The animation should be performant and avoid any janky transitions.
+Tags: generated
 Status: Done
 
 ID: 4
-User Story: As a GIF creator, I want a frame of a person walking on a beach at sunset, rendered in low-poly style, So that I can produce a visually appealing frame for a serene or nostalgic animation.
-Description: Single frame
-Tags: low-poly, beach, sunset, person, nature
+User Story: As a website designer, I want a simple color animation for my logo, so that I can attract more attention and improve the visual appeal of my website.
+Description: The animation should involve a smooth transition between two colors.  Specifically, the logo, initially a vibrant blue (#007bff), will gradually change its color to a warm orange (#ffa500) over a period of 3 seconds.  The transition should be linear, meaning the color change happens at a constant rate throughout the duration.  The animation should loop continuously.  No other elements of the logo, such as shape or size, should be affected.  The animation should be triggered when the page loads and continue indefinitely until the page is refreshed or closed.  The color transition should be easily customizable via CSS variables, allowing for flexibility in selecting alternative color pairs in the future.
+Tags: generated
+Status: Done
+
+ID: 5
+User Story: As a website designer, I want a simple color animation for my website's logo, so that I can create a visually appealing and engaging introduction for visitors.
+Description: The animation will target the website's logo, a simple graphic containing a single color.  The animation will consist of a smooth, gradual transition of this color over a period of 5 seconds. The color will change from its initial state (e.g., a deep blue #00008B) to a lighter shade of the same color (e.g., a light blue #ADD8E6).  The transition should be seamless and visually pleasing, avoiding any abrupt changes.  The color change will loop continuously, creating an infinite animation.  The animation should be easily controllable via CSS or JavaScript, allowing for easy adjustments to the duration, start color, end color, and ease of transition (e.g., ease-in-out).
+Tags: generated
+Status: Done
+
+ID: 6
+User Story: As a website designer, I want a simple color animation for a button on hover, so that I can provide engaging visual feedback to the user.
+Description: The animation should smoothly transition the button's background color from a base color (#007bff - a vibrant blue) to a secondary color (#0069d9 - a slightly darker shade of blue) upon mouse hover.  The transition should occur over 0.3 seconds using a smooth ease-in-out function.  When the mouse leaves the button, the background color should smoothly transition back to the original base color (#007bff) over the same duration and using the same ease-in-out function.  The animation should be subtle and not jarring, enhancing the user experience without being distracting. The text color within the button should remain unchanged during the animation. No other elements on the page should be affected by this animation.  The animation should be compatible with all major modern browsers.
+Tags: generated
+Status: Done
+
+ID: 7
+User Story: As a website designer, I want a simple color animation for my logo, so that I can make my website more engaging and visually appealing.
+Description: The animation should involve a gradual color change of the website logo.  The logo, assumed to be a static image, will smoothly transition its fill color from its initial color (e.g., a deep blue #002D62) to a secondary color (e.g., a bright teal #00A09D) over a period of 5 seconds. The transition should be a smooth gradient, avoiding any abrupt color shifts.  The animation should loop continuously, seamlessly cycling between the two colors.  The animation should be triggered on page load and should run indefinitely until the page is unloaded.  Furthermore, the animation should be optimized for performance to avoid impacting the overall website speed. The color transition should use a visually pleasing color interpolation method, avoiding harsh changes in hue or saturation.  Finally, the animation should be easily controllable through CSS variables, allowing designers to quickly modify colors and duration with simple code changes.
+Tags: generated
+Status: Done
+
+ID: 8
+User Story: As a website designer, I want a simple color animation for my website's logo, so that I can create a visually appealing and engaging introduction.
+Description: The animation should involve a gradual color transition of the website logo.  The logo, initially displayed in a dark blue (#002D62), will smoothly transition to a vibrant teal (#008080) over a period of 3 seconds.  The transition should be a smooth, linear gradient, with no abrupt changes in color.  Once the teal color is reached, it will hold for 1 second before transitioning back to the original dark blue over another 3 seconds. This cycle will then repeat indefinitely. The animation should be triggered upon page load and seamlessly integrate with the existing logo, without disrupting its overall appearance or readability.  The animation should be easily controlled via CSS (or similar) properties for ease of customization of color palette, duration, and timing functions if needed in the future.
+Tags: generated
+Status: In Progress
+
+ID: 9
+User Story: As a website designer, I want a simple color animation for my button on hover, so that I can enhance user engagement and provide visual feedback.
+Description: The animation should occur when the user hovers their mouse cursor over a button.  The button's background color will smoothly transition from its default color (#4CAF50 - a green) to a slightly brighter shade of the same color (#81C784 - a lighter green) over a duration of 0.3 seconds.  This transition should utilize a smooth easing function, such as easeInOutCubic, to avoid a jerky effect.  When the mouse cursor leaves the button, the background color should transition back to the original #4CAF50 color over the same 0.3-second duration, again using easeInOutCubic easing.  The text color within the button should remain unchanged throughout the animation. The animation should be compatible with modern browsers and avoid any performance issues, such as excessive CPU usage or lagging. The overall effect should be subtle and visually pleasing, providing clear feedback to the user without being distracting.
+Tags: generated
+Status: In Progress
+
+ID: 10
+User Story: As a website designer, I want a simple color animation for my website's logo, so that I can add a subtle visual interest and enhance the user experience.
+Description: The animation should involve a gradual color transition of the website logo.  The logo, initially a solid #007bff (bright blue), will smoothly transition over 3 seconds to #28a745 (bright green), then smoothly transition back to #007bff over another 3 seconds, creating a continuous loop.  The color change should be a linear transition, meaning the change in color happens at a consistent rate throughout the animation.  The animation should be triggered on page load and run indefinitely. The animation should be easily customizable through CSS variables so that the starting and ending colors, duration, and animation type can be easily adjusted. No jarring transitions should be visible between the color changes.
+Tags: generated
 Status: Done
 
