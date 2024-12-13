@@ -40,6 +40,17 @@ Each row must be exactly ${imageWidth} pixels wide and 1 pixel tall.
 Output only the base64 string, no other text.
 The base64 string should represent a valid PNG image.`;
 
+function debugBase64Response(response, rowNum) {
+    console.log(`\nRow ${rowNum} raw response:`, response);
+    try {
+        const decoded = Buffer.from(response, 'base64');
+        console.log(`Decoded length: ${decoded.length} bytes`);
+        console.log(`First few bytes:`, [...decoded.slice(0, 8)].map(b => b.toString(16)));
+    } catch (e) {
+        console.log('Failed to decode as base64:', e.message);
+    }
+}
+
 async function run() {
     function isValidBase64(str) {
         // Check if string exists and has valid base64 characters
