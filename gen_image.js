@@ -42,7 +42,7 @@ Output only the base64 string.`;
 async function run() {
     function isValidBase64(str) {
         try {
-            return btoa(atob(str)) == str;
+            return Buffer.from(str, 'base64').toString('base64') === str;
         } catch (err) {
             return false;
         }
@@ -70,7 +70,6 @@ async function run() {
     const startTime = performance.now();
     try {
         for (let i = 0; i < imageHeight; i++) {
-            try {
                 const prompt = `Row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Base64 only.`;
                 console.log(`Generating row ${i + 1}...`);
                 
@@ -105,9 +104,9 @@ async function run() {
                 
                 if (success) {
                     const messageEndTime = performance.now();
-                console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
+                    console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
 
-                let base64String = result.response.text().trim();
+                    let base64String = result.response.text().trim();
                 
                 // Validate base64 string
                 if (base64String && isValidBase64(base64String)) {
