@@ -94,23 +94,56 @@ function cleanBase64Response(response) {
 function parsePngBuffer(buffer) {
     return new Promise((resolve, reject) => {
         try {
-            // Create a new PNG instance with more permissive parsing
+            // Validate PNG signature
+            const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+            if (buffer.slice(0, 8).compare(pngHeader) !== 0) {
+                reject(new Error('Invalid PNG signature'));
+                return;
+            }
+
+            // Create a new PNG instance with strict parsing
             const png = new PNG({
-                filterType: 4,  // Paeth filter
-                checkCRC: false,
+                filterType: -1,  // Auto-detect filter
+                checkCRC: true,  // Enable CRC checks
                 skipRescale: true,
                 fixTransparency: true,
-                colorType: 6  // RGBA
+                colorType: 6,  // RGBA
+                inputHasAlpha: true,
+                inputColorType: 6
+            });
+            
+            let hasIHDR = false;
+            let hasIDAT = false;
+            let hasIEND = false;
+            
+            // Add chunk handler to validate chunk types
+            png.on('metadata', (metadata) => {
+                hasIHDR = true;
+                if (metadata.width !== IMAGE_WIDTH || metadata.height !== 1) {
+                    reject(new Error(`Invalid dimensions: ${metadata.width}x${metadata.height}`));
+                }
+            });
+            
+            png.on('data', () => {
+                hasIDAT = true;
+            });
+            
+            png.on('end', () => {
+                hasIEND = true;
             });
             
             // Add error handler
             png.on('error', (error) => {
-                console.warn('PNG parsing warning:', error.message);
-                // Continue despite warnings
+                reject(new Error(`PNG parsing error: ${error.message}`));
             });
             
             // Add parsing complete handler
             png.on('parsed', function() {
+                if (!hasIHDR || !hasIDAT || !hasIEND) {
+                    reject(new Error('Missing required PNG chunks'));
+                    return;
+                }
+                
                 if (this.width !== IMAGE_WIDTH || this.height !== 1) {
                     reject(new Error(`Invalid dimensions: ${this.width}x${this.height}`));
                     return;
@@ -130,7 +163,7 @@ function parsePngBuffer(buffer) {
                 reject(new Error('PNG parsing timeout'));
             }, 5000);
             
-            png.parse(buffer, (error, data) => {
+            png.parse(buffer, (error) => {
                 clearTimeout(parseTimeout);
                 if (error) {
                     reject(error);
@@ -296,12 +329,19 @@ Each row must be exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.
 Output ONLY the raw base64 string with no formatting, quotes, or additional text.
 Do not include any prefix like 'data:image/png;base64,'.
 The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH}x1 pixels.
-The PNG must be properly formatted with:
-- Complete PNG header
-- All required chunks (IHDR, IDAT, IEND)
-- Valid IDAT compression
-- No optional chunks
-Do not truncate or modify the base64 output in any way.`;
+The PNG must be properly formatted with EXACTLY these chunks in order:
+1. PNG signature (89 50 4E 47 0D 0A 1A 0A)
+2. IHDR chunk with:
+   - Width = ${IMAGE_WIDTH}
+   - Height = 1
+   - Bit depth = 8
+   - Color type = 6 (RGBA)
+   - Compression = 0 (DEFLATE)
+   - Filter = 0 (None)
+   - Interlace = 0 (None)
+3. Single IDAT chunk with zlib-compressed RGBA pixel data
+4. IEND chunk
+Do not include any other chunks. The response must be a complete, valid PNG.`;
 
 
     const chatSession = model.startChat({
