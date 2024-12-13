@@ -113,10 +113,14 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
     }
 }
 
-async function generateRow(chatSession, rowNum, totalRows, userStory, timeout) {
-    const prompt = `Generate a single row of pixels (${IMAGE_WIDTH}x1) for row ${rowNum} of ${totalRows} of "${userStory}". 
-The row should be part of a coherent ${IMAGE_WIDTH}x${totalRows} final image.
-Return only the raw base64 PNG data.`;
+async function generateRow(chatSession, rowNum, totalRows, userStory, timeout, previousRow = null) {
+    let prompt = `Generate a single row of pixels (${IMAGE_WIDTH}x1) for row ${rowNum} of ${totalRows} of "${userStory}". 
+The row should be part of a coherent ${IMAGE_WIDTH}x${totalRows} final image.`;
+    
+    if (previousRow) {
+        prompt += ` The previous row looked like this: ${previousRow}. Try to have the colors of this row flow smoothly from the previous one.`;
+    }
+    prompt += `Return only the raw base64 PNG data.`;
 
     const result = await Promise.race([
         chatSession.sendMessage(prompt),
@@ -185,6 +189,15 @@ The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH
     console.log("Starting image generation process...");
     const startTime = performance.now();
 
+        const logMemoryUsage = () => {
+        const used = process.memoryUsage();
+        console.log('Memory usage:',
+            Object.entries(used).map(([key, val]) => 
+                `${key}: ${Math.round(val / 1024 / 1024 * 100) / 100} MB`
+            ).join(', ')
+        );
+    };
+
     try {
         for (let i = 0; i < IMAGE_HEIGHT; i++) {
             const rowStartTime = performance.now();
@@ -197,7 +210,7 @@ The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH
 
             while (retries < MAX_RETRIES && !success) {
                 try {
-                    base64String = await generateRow(chatSession, i + 1, IMAGE_HEIGHT, userStory, timeout);
+                    base64String = await generateRow(chatSession, i + 1, IMAGE_HEIGHT, userStory, timeout, prevRowBase64);
                     success = true;
                 } catch (error) {
                     retries++;
@@ -233,6 +246,7 @@ The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH
                 await saveDatasetEntry(rowData);
 
                 console.log(`Row ${i + 1} generated in ${timeTaken.toFixed(2)}s`);
+                logMemoryUsage();
 
                 // Update preview at intervals
                 if (i % SAVE_INTERVAL === 0 || i === IMAGE_HEIGHT - 1) {
