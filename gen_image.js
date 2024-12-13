@@ -64,40 +64,43 @@ async function validatePngData(buffer) {
 }
 
 async function processRow(base64String, ctx, y, prevRowBase64) {
-    let image = null;
     try {
-        // Process in smaller chunks to avoid memory spikes
-        const chunkSize = 1024 * 1024; // 1MB chunks
+        // Convert base64 to buffer in smaller chunks
         const buffer = Buffer.from(base64String, 'base64');
         
-        // Validate PNG header using only the first chunk
-        const firstChunk = buffer.slice(0, Math.min(buffer.length, chunkSize));
-        const isValidPng = await validatePngData(firstChunk);
-        
-        if (!isValidPng) {
+        // Basic PNG validation
+        if (!await validatePngData(buffer)) {
             throw new Error('Invalid PNG data');
         }
 
-        // Create a temporary canvas for the row
+        // Create a temporary canvas just for pixel data extraction
         const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
         const tempCtx = tempCanvas.getContext('2d');
-
-        // Load image with explicit garbage collection
-        image = await loadImage(`data:image/png;base64,${base64String}`);
         
-        if (image.width !== IMAGE_WIDTH || image.height !== 1) {
-            throw new Error(`Invalid dimensions: ${image.width}x${image.height}`);
+        // Create ImageData directly
+        const imageData = tempCtx.createImageData(IMAGE_WIDTH, 1);
+        
+        // Parse PNG data using a more memory-efficient approach
+        const uint8Array = new Uint8Array(buffer);
+        const dataView = new DataView(uint8Array.buffer);
+        
+        // Skip PNG header (8 bytes) and parse IHDR chunk
+        let offset = 8;
+        const chunkLength = dataView.getUint32(offset);
+        
+        // Extract pixel data (assuming simple PNG format)
+        const pixelDataStart = offset + 8 + chunkLength + 4; // Skip chunk header
+        const pixelData = uint8Array.slice(pixelDataStart, pixelDataStart + IMAGE_WIDTH * 4);
+        
+        // Copy pixel data to ImageData
+        for (let i = 0; i < IMAGE_WIDTH * 4; i++) {
+            imageData.data[i] = pixelData[i] || 255; // Default to white if data is missing
         }
-
-        // Draw to temp canvas first
-        tempCtx.drawImage(image, 0, 0, IMAGE_WIDTH, 1);
         
-        // Copy from temp canvas to main canvas
-        ctx.drawImage(tempCanvas, 0, y, IMAGE_WIDTH, 1);
+        // Put the pixel data directly onto the main canvas
+        ctx.putImageData(imageData, 0, y);
         
-        // Cleanup
-        image.src = '';
-        image = null;
+        // Clean up
         tempCanvas.width = 0;
         tempCanvas.height = 0;
         
@@ -109,37 +112,10 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
     } catch (error) {
         console.warn(`Warning: Row ${y + 1} processing failed:`, error.message);
         
-        // Cleanup on error
-        if (image) {
-            image.src = '';
-            image = null;
-        }
-        
-        if (global.gc) {
-            global.gc();
-        }
-
-        // Try using previous row or fallback to white
+        // Use previous row or white as fallback
         if (prevRowBase64) {
             try {
-                const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
-                const tempCtx = tempCanvas.getContext('2d');
-                
-                image = await loadImage(`data:image/png;base64,${prevRowBase64}`);
-                tempCtx.drawImage(image, 0, 0, IMAGE_WIDTH, 1);
-                ctx.drawImage(tempCanvas, 0, y, IMAGE_WIDTH, 1);
-                
-                // Cleanup
-                image.src = '';
-                image = null;
-                tempCanvas.width = 0;
-                tempCanvas.height = 0;
-                
-                if (global.gc) {
-                    global.gc();
-                }
-                
-                return prevRowBase64;
+                return await processRow(prevRowBase64, ctx, y, null);
             } catch {
                 ctx.fillStyle = 'white';
                 ctx.fillRect(0, y, IMAGE_WIDTH, 1);
