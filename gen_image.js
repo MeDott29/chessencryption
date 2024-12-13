@@ -4,7 +4,9 @@ const {
     HarmBlockThreshold,
 } = require("@google/generative-ai");
 
-const TIMEOUT_SECONDS = 30;
+const INITIAL_TIMEOUT = 10; // 10 seconds initial timeout
+const MAX_RETRIES = 3;
+const BACKOFF_MULTIPLIER = 1.5;
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas'); // Using node-canvas for image manipulation
@@ -24,24 +26,18 @@ const model = genAI.getGenerativeModel({
 });
 
 const generationConfig = {
-    temperature: 1,
-    topP: 0.95,
+    temperature: 0.7,  // Reduced from 1.0
+    topP: 0.8,        // Reduced from 0.95
     topK: 40,
-    maxOutputTokens: 8192,
+    maxOutputTokens: 2048,  // Reduced from 8192 since we only need base64 output
 };
 
 const imageWidth = 256; // Define the desired image dimensions
 const imageHeight = 256;
 
-const systemPrompt = `You are an expert image generator. Generate a detailed base64 string representing a high-quality row of pixels.
-
-Rules:
-1. Output ONLY the base64 string - nothing else
-2. Take time to generate a detailed, high-quality result
-3. Each row must be exactly ${imageWidth} pixels wide
-4. Return empty string "" if failed
-
-The base64 should be detailed enough to take 4-5 seconds to generate.`;
+const systemPrompt = `You are an image generator that creates base64 encoded pixel rows.
+Each row must be exactly ${imageWidth} pixels wide.
+Output only the base64 string.`;
 
 async function run() {
     function isValidBase64(str) {
@@ -75,21 +71,40 @@ async function run() {
     try {
         for (let i = 0; i < imageHeight; i++) {
             try {
-                const prompt = `Generate a detailed, high-quality row ${i+1}/${imageHeight} of "${userStory}". 
-Width: ${imageWidth}px. 
-Consider lighting, shadows, and fine details.
-Take time to create a rich, nuanced representation.
-Return ONLY the base64 string.`;
+                const prompt = `Row ${i+1}/${imageHeight} of "${userStory}". Width: ${imageWidth}px. Base64 only.`;
                 console.log(`Generating row ${i + 1}...`);
                 
                 const messageStartTime = performance.now();
-                const result = await Promise.race([
-                    chatSession.sendMessage(prompt),
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('Timeout')), TIMEOUT_SECONDS * 1000)
-                    )
-                ]);
-                const messageEndTime = performance.now();
+                let timeout = INITIAL_TIMEOUT;
+                let retries = 0;
+                let success = false;
+                let result;
+
+                while (retries < MAX_RETRIES && !success) {
+                    try {
+                        result = await Promise.race([
+                            chatSession.sendMessage(prompt),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('Timeout')), timeout * 1000)
+                            )
+                        ]);
+                        success = true;
+                    } catch (error) {
+                        retries++;
+                        if (retries < MAX_RETRIES) {
+                            console.warn(`Attempt ${retries} timed out after ${timeout}s, retrying...`);
+                            timeout *= BACKOFF_MULTIPLIER;
+                        } else {
+                            console.warn("Max retries reached - using blank row");
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, i, imageWidth, 1);
+                            break;
+                        }
+                    }
+                }
+                
+                if (success) {
+                    const messageEndTime = performance.now();
                 console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
 
                 let base64String = result.response.text().trim();
