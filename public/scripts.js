@@ -22,12 +22,9 @@ socket.addEventListener('message', (event) => {
                 try {
                     const imageContainer = document.createElement('div');
                     imageContainer.classList.add('image-container');
-                    const img1 = document.createElement('img');
-                    img1.src = 'image/gif;base64,' + data.base64Strings[0];
-                    const img2 = document.createElement('img');
-                    img2.src = 'image/gif;base64,' + data.base64Strings[1];
-                    imageContainer.appendChild(img1);
-                    imageContainer.appendChild(img2);
+                    const gif = document.createElement('img');
+                    gif.src = `image/gif;base64,${data.base64Strings.join('')}`;
+                    imageContainer.appendChild(gif);
                     userStoryDiv.appendChild(imageContainer);
                 } catch (error) {
                     console.error("Error creating or appending images:", error);
