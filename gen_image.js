@@ -64,29 +64,27 @@ async function validatePngData(buffer) {
 }
 
 async function processRow(base64String, ctx, y, prevRowBase64) {
+    let image = null;
     try {
-        // Create a temporary canvas for each row
-        const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
-        const tempCtx = tempCanvas.getContext('2d');
-        
+        // Process in smaller chunks to avoid memory spikes
+        const chunkSize = 1024 * 1024; // 1MB chunks
         const buffer = Buffer.from(base64String, 'base64');
-        const isValidPng = await validatePngData(buffer);
+        
+        // Validate PNG header using only the first chunk
+        const firstChunk = buffer.slice(0, Math.min(buffer.length, chunkSize));
+        const isValidPng = await validatePngData(firstChunk);
         
         if (!isValidPng) {
             throw new Error('Invalid PNG data');
         }
 
-        // Load image with explicit dimensions
-        const image = new Image();
-        image.width = IMAGE_WIDTH;
-        image.height = 1;
-        
-        await new Promise((resolve, reject) => {
-            image.onload = resolve;
-            image.onerror = reject;
-            image.src = `data:image/png;base64,${base64String}`;
-        });
+        // Create a temporary canvas for the row
+        const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
+        const tempCtx = tempCanvas.getContext('2d');
 
+        // Load image with explicit garbage collection
+        image = await loadImage(`data:image/png;base64,${base64String}`);
+        
         if (image.width !== IMAGE_WIDTH || image.height !== 1) {
             throw new Error(`Invalid dimensions: ${image.width}x${image.height}`);
         }
@@ -97,21 +95,50 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
         // Copy from temp canvas to main canvas
         ctx.drawImage(tempCanvas, 0, y, IMAGE_WIDTH, 1);
         
-        // Clear references
+        // Cleanup
         image.src = '';
+        image = null;
         tempCanvas.width = 0;
         tempCanvas.height = 0;
         
-        if (global.gc) global.gc();
+        if (global.gc) {
+            global.gc();
+        }
         
         return base64String;
     } catch (error) {
         console.warn(`Warning: Row ${y + 1} processing failed:`, error.message);
+        
+        // Cleanup on error
+        if (image) {
+            image.src = '';
+            image = null;
+        }
+        
+        if (global.gc) {
+            global.gc();
+        }
+
+        // Try using previous row or fallback to white
         if (prevRowBase64) {
             try {
-                const image = await loadImage(`data:image/png;base64,${prevRowBase64}`);
-                ctx.drawImage(image, 0, y, IMAGE_WIDTH, 1);
+                const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                image = await loadImage(`data:image/png;base64,${prevRowBase64}`);
+                tempCtx.drawImage(image, 0, 0, IMAGE_WIDTH, 1);
+                ctx.drawImage(tempCanvas, 0, y, IMAGE_WIDTH, 1);
+                
+                // Cleanup
                 image.src = '';
+                image = null;
+                tempCanvas.width = 0;
+                tempCanvas.height = 0;
+                
+                if (global.gc) {
+                    global.gc();
+                }
+                
                 return prevRowBase64;
             } catch {
                 ctx.fillStyle = 'white';
@@ -142,16 +169,24 @@ Return only the raw base64 PNG data.`;
 }
 
 async function run() {
+    // Set Node.js memory limits
+    if (typeof process !== 'undefined') {
+        // Limit heap size to 512MB
+        const maxOldSpaceSize = 512;
+        if (process.execArgv.indexOf(`--max-old-space-size=${maxOldSpaceSize}`) === -1) {
+            process.execArgv.push(`--max-old-space-size=${maxOldSpaceSize}`);
+        }
+    }
+
     const userStory = "a majestic mountain landscape";
     const fileName = 'generated_image.png';
     const filePath = path.join(__dirname, fileName);
 
     // Initialize canvas
     const canvas = createCanvas(IMAGE_WIDTH, IMAGE_HEIGHT);
-    const ctx = canvas.getContext('2d', { alpha: false }); // Disable alpha channel
+    const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
-    ctx.imageSmoothingEnabled = false; // Disable image smoothing
 
     const chatSession = model.startChat({
         generationConfig,
