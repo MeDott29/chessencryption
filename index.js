@@ -195,4 +195,6 @@ async function run() {
         });
 
 }
-setInterval(run, 10000); // Run every ten seconds
+setInterval(async () => {
+    await run();
+}, 10000); // Run every ten seconds
