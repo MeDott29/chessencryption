@@ -4,7 +4,7 @@ const {
     HarmBlockThreshold,
 } = require("@google/generative-ai");
 const { createCanvas, loadImage, Image } = require('canvas');
-const fs = require('fs').promises;  // Use promise-based fs
+const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
 
@@ -14,41 +14,38 @@ const MAX_RETRIES = 3;
 const BACKOFF_MULTIPLIER = 2;
 const IMAGE_WIDTH = 256;
 const IMAGE_HEIGHT = 256;
-const SAVE_INTERVAL = 10;  // Save every 10 rows
+const SAVE_INTERVAL = 10;
 
-async function logToJsonl(data) {
-    const logFile = path.join(__dirname, 'generation_log.jsonl');
-    const logEntry = {
-        timestamp: new Date().toISOString(),
-        ...data
-    };
-    await fs.appendFile(logFile, JSON.stringify(logEntry) + '\n');
-}
-
-// Initialize API
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-    console.error("Error: GEMINI_API_KEY environment variable not set");
-    process.exit(1);
-}
-
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
-});
-
-const generationConfig = {
-    temperature: 0.4,
-    topP: 0.8,
-    topK: 40,
-    maxOutputTokens: 1024,
+// Data storage structure
+let generationData = {
+    metadata: {
+        startTime: null,
+        endTime: null,
+        userStory: "",
+        imageWidth: IMAGE_WIDTH,
+        imageHeight: IMAGE_HEIGHT,
+    },
+    rows: []
 };
 
-const systemPrompt = `You are an image generator that creates base64 encoded PNG data for single pixel rows.
-Each row must be exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.
-Output ONLY the raw base64 string with no formatting, quotes, or additional text.
-Do not include any prefix like 'data:image/png;base64,'.
-The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH}x1 pixels.`;
+async function saveGenerationData() {
+    const dataFile = path.join(__dirname, 'generation_data.json');
+    await fs.writeFile(dataFile, JSON.stringify(generationData, null, 2));
+}
+
+async function saveDatasetEntry(rowData) {
+    const datasetFile = path.join(__dirname, 'generation_dataset.jsonl');
+    const entry = {
+        timestamp: new Date().toISOString(),
+        ...rowData
+    };
+    await fs.appendFile(datasetFile, JSON.stringify(entry) + '\n');
+}
+
+async function updateImagePreview(canvas, previewPath) {
+    const imageBuffer = canvas.toBuffer('image/png');
+    await fs.writeFile(previewPath, imageBuffer);
+}
 
 function cleanBase64Response(response) {
     return response.replace(/^["']|["']$/g, '')
@@ -65,42 +62,30 @@ async function validatePngData(buffer) {
 
 async function processRow(base64String, ctx, y, prevRowBase64) {
     try {
-        // Convert base64 to buffer in smaller chunks
         const buffer = Buffer.from(base64String, 'base64');
         
-        // Basic PNG validation
         if (!await validatePngData(buffer)) {
             throw new Error('Invalid PNG data');
         }
 
-        // Create a temporary canvas just for pixel data extraction
         const tempCanvas = createCanvas(IMAGE_WIDTH, 1);
         const tempCtx = tempCanvas.getContext('2d');
-        
-        // Create ImageData directly
         const imageData = tempCtx.createImageData(IMAGE_WIDTH, 1);
         
-        // Parse PNG data using a more memory-efficient approach
         const uint8Array = new Uint8Array(buffer);
         const dataView = new DataView(uint8Array.buffer);
         
-        // Skip PNG header (8 bytes) and parse IHDR chunk
         let offset = 8;
         const chunkLength = dataView.getUint32(offset);
-        
-        // Extract pixel data (assuming simple PNG format)
-        const pixelDataStart = offset + 8 + chunkLength + 4; // Skip chunk header
+        const pixelDataStart = offset + 8 + chunkLength + 4;
         const pixelData = uint8Array.slice(pixelDataStart, pixelDataStart + IMAGE_WIDTH * 4);
         
-        // Copy pixel data to ImageData
         for (let i = 0; i < IMAGE_WIDTH * 4; i++) {
-            imageData.data[i] = pixelData[i] || 255; // Default to white if data is missing
+            imageData.data[i] = pixelData[i] || 255;
         }
         
-        // Put the pixel data directly onto the main canvas
         ctx.putImageData(imageData, 0, y);
         
-        // Clean up
         tempCanvas.width = 0;
         tempCanvas.height = 0;
         
@@ -112,7 +97,6 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
     } catch (error) {
         console.warn(`Warning: Row ${y + 1} processing failed:`, error.message);
         
-        // Use previous row or white as fallback
         if (prevRowBase64) {
             try {
                 return await processRow(prevRowBase64, ctx, y, null);
@@ -145,9 +129,7 @@ Return only the raw base64 PNG data.`;
 }
 
 async function run() {
-    // Set Node.js memory limits
     if (typeof process !== 'undefined') {
-        // Limit heap size to 512MB
         const maxOldSpaceSize = 512;
         if (process.execArgv.indexOf(`--max-old-space-size=${maxOldSpaceSize}`) === -1) {
             process.execArgv.push(`--max-old-space-size=${maxOldSpaceSize}`);
@@ -156,7 +138,12 @@ async function run() {
 
     const userStory = "a majestic mountain landscape";
     const fileName = 'generated_image.png';
+    const previewPath = path.join(__dirname, 'preview.png');
     const filePath = path.join(__dirname, fileName);
+
+    // Initialize generation data
+    generationData.metadata.startTime = new Date().toISOString();
+    generationData.metadata.userStory = userStory;
 
     // Initialize canvas
     const canvas = createCanvas(IMAGE_WIDTH, IMAGE_HEIGHT);
@@ -164,14 +151,30 @@ async function run() {
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
 
-    const logMemoryUsage = () => {
-        const used = process.memoryUsage();
-        console.log('Memory usage:',
-            Object.entries(used).map(([key, val]) => 
-                `${key}: ${Math.round(val / 1024 / 1024 * 100) / 100} MB`
-            ).join(', ')
-        );
+    // Initialize API
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        console.error("Error: GEMINI_API_KEY environment variable not set");
+        process.exit(1);
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+    });
+
+    const generationConfig = {
+        temperature: 0.4,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 1024,
     };
+
+    const systemPrompt = `You are an image generator that creates base64 encoded PNG data for single pixel rows.
+Each row must be exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.
+Output ONLY the raw base64 string with no formatting, quotes, or additional text.
+Do not include any prefix like 'data:image/png;base64,'.
+The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH}x1 pixels.`;
 
     const chatSession = model.startChat({
         generationConfig,
@@ -184,8 +187,8 @@ async function run() {
 
     try {
         for (let i = 0; i < IMAGE_HEIGHT; i++) {
+            const rowStartTime = performance.now();
             console.log(`Generating row ${i + 1}...`);
-            const messageStartTime = performance.now();
             
             let timeout = INITIAL_TIMEOUT;
             let retries = 0;
@@ -210,41 +213,56 @@ async function run() {
             }
 
             if (success) {
-                const messageEndTime = performance.now();
-                console.log(`Row ${i + 1} generated in ${((messageEndTime - messageStartTime) / 1000).toFixed(2)}s`);
-
+                const rowEndTime = performance.now();
+                const timeTaken = (rowEndTime - rowStartTime) / 1000;
+                
                 base64String = cleanBase64Response(base64String);
                 prevRowBase64 = await processRow(base64String, ctx, i, prevRowBase64);
 
-                // Log generation data
-                await logToJsonl({
+                // Save row data
+                const rowData = {
                     row: i + 1,
-                    timeTaken: ((messageEndTime - messageStartTime) / 1000).toFixed(2)
-                });
-                logMemoryUsage();
+                    timeTaken,
+                    timestamp: new Date().toISOString(),
+                    success: true,
+                    retries,
+                    base64Data: base64String
+                };
 
-                // Save progress at intervals
+                generationData.rows.push(rowData);
+                await saveDatasetEntry(rowData);
+
+                console.log(`Row ${i + 1} generated in ${timeTaken.toFixed(2)}s`);
+
+                // Update preview at intervals
                 if (i % SAVE_INTERVAL === 0 || i === IMAGE_HEIGHT - 1) {
-                    const imageBuffer = canvas.toBuffer('image/png');
-                    await fs.writeFile(filePath, imageBuffer);
+                    await updateImagePreview(canvas, previewPath);
+                    await saveGenerationData();
                     console.log(`Progress saved at row ${i + 1}`);
                 }
             }
 
-            // Force garbage collection if available
             if (global.gc) {
                 global.gc();
             }
         }
 
         const endTime = performance.now();
+        generationData.metadata.endTime = new Date().toISOString();
+        
+        // Save final image and data
+        const imageBuffer = canvas.toBuffer('image/png');
+        await fs.writeFile(filePath, imageBuffer);
+        await saveGenerationData();
+        
         console.log(`Total time: ${((endTime - startTime) / 1000).toFixed(2)} seconds`);
     } catch (error) {
         console.error("Fatal error:", error);
         const endTime = performance.now();
+        generationData.metadata.endTime = new Date().toISOString();
+        await saveGenerationData();
         console.log(`Terminated after: ${((endTime - startTime) / 1000).toFixed(2)} seconds`);
     }
 }
 
-// Run with --expose-gc flag to enable manual garbage collection
 run().catch(console.error);
