@@ -195,14 +195,15 @@ async function generateImage(userStory) {
     const result2_0 = await model2_0.generateContent(prompt2_0);
     let singleBase64 = result2_0.response.text().trim();
     
-    // Clean up the response if needed
-    singleBase64 = singleBase64
-        .replace(/^```[\w]*\n|```$/g, '')  // Remove code blocks
-        .replace(/^data:image\/\w+;base64,/, '')  // Remove existing data URI prefix
-        .trim();
+    // Clean up and validate the response
+    const { validateAndNormalizeBase64 } = require('./gif_generator');
+    const validatedBase64 = validateAndNormalizeBase64(singleBase64);
+    if (!validatedBase64) {
+        throw new Error('Generated image data failed validation');
+    }
 
-    console.log("Generated base64 image data length:", singleBase64.length);
-    return singleBase64;
+    console.log("Generated base64 image data length:", validatedBase64.length);
+    return validatedBase64;
 }
 async function run() {
     const stories = await readUserStories();

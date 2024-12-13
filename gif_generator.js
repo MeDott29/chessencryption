@@ -3,29 +3,67 @@ const { createCanvas, loadImage } = require('canvas');
 const GIFEncoder = require('gifencoder');
 const { Image } = require('canvas');
 
+function validateAndNormalizeBase64(base64String) {
+    try {
+        // Clean up the string
+        let cleaned = base64String
+            .replace(/^```[\w]*\n|```$/g, '')  // Remove code blocks
+            .replace(/^data:image\/\w+;base64,/, '')  // Remove data URI prefix
+            .replace(/[\n\r\s]/g, '')  // Remove all whitespace, newlines
+            .trim();
+
+        // Check if it's valid base64
+        if (!/^[A-Za-z0-9+/]+[=]{0,2}$/.test(cleaned)) {
+            console.error('Invalid base64 characters detected');
+            return null;
+        }
+
+        // Check for reasonable length (assuming 64x64 PNG, should be at least a few KB)
+        if (cleaned.length < 1000) {
+            console.error('Base64 string suspiciously short:', cleaned.length);
+            return null;
+        }
+
+        // Try decoding to verify it's valid base64
+        try {
+            atob(cleaned);
+        } catch (e) {
+            console.error('Base64 decode failed:', e);
+            return null;
+        }
+
+        return cleaned;
+    } catch (error) {
+        console.error('Error in validateAndNormalizeBase64:', error);
+        return null;
+    }
+}
+
 async function base64ToImage(base64String) {
     try {
-        // Clean up the base64 string more thoroughly
-        let base64Data = base64String
-            .replace(/^data:image\/\w+;base64,/, '')  // Remove data URI prefix
-            .replace(/^```[\w]*\n|```$/g, '')         // Remove code blocks
-            .trim();                                   // Remove whitespace
-        
-        // Add data URI prefix if it's missing
-        if (!base64Data.startsWith('data:image')) {
-            base64Data = `data:image/png;base64,${base64Data}`;
+        // Validate and normalize the base64 string
+        const validatedBase64 = validateAndNormalizeBase64(base64String);
+        if (!validatedBase64) {
+            throw new Error('Invalid base64 data');
         }
+
+        // Create proper data URI
+        const base64Data = `data:image/png;base64,${validatedBase64}`;
 
         return new Promise((resolve, reject) => {
             const img = new Image();
             
-            // Set a timeout to prevent hanging
             const timeout = setTimeout(() => {
                 reject(new Error('Image loading timed out'));
             }, 5000);
 
             img.onload = () => {
                 clearTimeout(timeout);
+                // Verify image dimensions
+                if (img.width === 0 || img.height === 0) {
+                    reject(new Error('Invalid image dimensions'));
+                    return;
+                }
                 resolve(img);
             };
 
@@ -45,6 +83,13 @@ async function base64ToImage(base64String) {
 
 async function createRotationGif(imageData, outputPath, options = {}) {
     try {
+        // Validate base64 data first
+        const validatedBase64 = validateAndNormalizeBase64(imageData);
+        if (!validatedBase64) {
+            console.error('Invalid base64 data provided for GIF creation');
+            return null;
+        }
+
         const {
             width = 64,
             height = 64,
@@ -158,7 +203,8 @@ async function processUserStoryImages() {
 // Export functions for potential external use
 module.exports = {
     createRotationGif,
-    processUserStoryImages
+    processUserStoryImages,
+    validateAndNormalizeBase64
 };
 
 // If run directly, process images
