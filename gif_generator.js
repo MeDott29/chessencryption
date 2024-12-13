@@ -1,6 +1,7 @@
 const fs = require('node:fs/promises');
 const { createCanvas, loadImage } = require('canvas');
 const GIFEncoder = require('gifencoder');
+const { Image } = require('canvas');
 
 async function base64ToImage(base64String) {
     try {
@@ -19,8 +20,16 @@ async function base64ToImage(base64String) {
             // Optionally, you could implement image resizing here
         }
         
-        // Use canvas library to load image
-        return await loadImage(`data:image/png;base64,${base64Data}`);
+        // Use a more robust image loading method
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = (err) => {
+                console.error('Image load error:', err);
+                reject(new Error('Failed to load image'));
+            };
+            img.src = `data:image/png;base64,${base64Data}`;
+        });
     } catch (error) {
         console.error('Error converting base64 to image:', error);
         throw error;
