@@ -81,8 +81,10 @@ async function generateBase64FrameData() {
     console.log("generateBase64FrameData prompt:", prompt)
     try {
         const result = await chatSession.sendMessage(prompt);
-        console.log("generateBase64FrameData response:", result.response.text())
-        const base64Strings = result.response.text().split('\n');
+        let responseText = result.response.text();
+        // Remove markdown code fences if present
+        responseText = responseText.replace(/```\n/g, '').replace(/```/g, '');
+        const base64Strings = responseText.split('\n').filter(Boolean);
         console.log("generateBase64FrameData response:", base64Strings)
         return base64Strings;
     } catch (error) {
