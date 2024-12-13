@@ -1,14 +1,17 @@
-const {
-    GoogleGenerativeAI,
-    HarmCategory,
-    HarmBlockThreshold,
-} = require("@google/generative-ai");
-const { createCanvas, loadImage, Image, ImageData } = require('canvas');
-const fs = require('fs').promises;
-const path = require('path');
-const pLimit = require('p-limit');
-const PNG = require('pngjs').PNG; // Import the pngjs library for robust PNG parsing
-require('dotenv').config();
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { createCanvas, loadImage, Image, ImageData } from 'canvas';
+import { promises as fs } from 'fs';
+import path from 'path';
+import pLimit from 'p-limit';
+import { PNG } from 'pngjs';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config();
 
 // Constants
 const INITIAL_TIMEOUT = 30;
