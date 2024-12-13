@@ -43,6 +43,7 @@ const safetySettings = [
     },
   ]
 const userStoriesFile = 'user_stories.txt';
+const imageDatabaseFile = 'image_database.json';
 // Set up Express app
 const app = express();
 const server = http.createServer(app);
@@ -97,13 +98,6 @@ async function readUserStories() {
                 currentStory.tags = line.split(': ')[1];
             } else if (line.startsWith('Status:')) {
                 currentStory.status = line.split(': ')[1];
-            } else if (line.startsWith('ColorArray:')) {
-                try {
-                    currentStory.colorArray = JSON.parse(line.split(': ')[1]);
-                } catch (e) {
-                    console.error("Could not parse color array", e)
-                    currentStory.colorArray = [];
-                }
             }
         }
            if (currentStory.ID) {
@@ -142,6 +136,23 @@ async function updateStoryStatus(stories, storyID, newStatus) {
       return story;
     });
 }
+async function readImageDatabase() {
+    try {
+        const data = await fs.readFile(imageDatabaseFile, 'utf-8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('Error reading image database file, creating new database:', error);
+        return {};
+    }
+}
+async function writeImageDatabase(data) {
+    try {
+        await fs.writeFile(imageDatabaseFile, JSON.stringify(data, null, 2));
+        console.log("Updated image_database.json");
+    } catch (error) {
+        console.error('Error writing to image database file:', error);
+    }
+}
 async function run() {
     const stories = await readUserStories();
     if (!stories || stories.length === 0) {
@@ -159,16 +170,22 @@ async function run() {
     console.log(`Processing user story ${userStoryID}`)
     let updatedStories = await updateStoryStatus(stories, userStoryID, "In Progress");
     await writeUserStories(updatedStories);
-    const colorArray = nextStory.colorArray;
+    // Generate a simple color array
+    const colorArray = ['#FF0000', '#00FF00', '#0000FF'];
+    const imageDatabase = await readImageDatabase();
+    imageDatabase[userStoryID] = colorArray;
+    await writeImageDatabase(imageDatabase);
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
-        await writeUserStories(updatedStories);
+    await writeUserStories(updatedStories);
+    const updatedImageDatabase = await readImageDatabase();
+    const storedColorArray = updatedImageDatabase[userStoryID];
         // Send data to client through web sockets
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({
                 type:"image",
                 userStoryID: userStoryID,
-                colorArray:colorArray,
+                colorArray:storedColorArray,
                 status: "Done"
             }));
           }

@@ -75,9 +75,7 @@ async function appendNewUserStory() {
         return;
     }
     const {userStory, description} = userStoryData;
-    // Generate a simple color array
-    const colorArray = ['#FF0000', '#00FF00', '#0000FF'];
-    if (!userStory || !description || !colorArray) {
+    if (!userStory || !description) {
         console.error("Could not generate all required data for user story")
         return;
     }
@@ -89,14 +87,12 @@ async function appendNewUserStory() {
         description: description,
         tags: "generated",
         status: "Pending",
-        colorArray: colorArray
     }
     let output = `ID: ${newStory.ID}\n`;
     output += `User Story: ${newStory.userStory}\n`;
     output += `Description: ${newStory.description}\n`;
     output += `Tags: ${newStory.tags}\n`;
-    output += `Status: ${newStory.status}\n`;
-    output += `ColorArray: ${JSON.stringify(newStory.colorArray)}\n\n`;
+    output += `Status: ${newStory.status}\n\n`;
     try {
         await fs.appendFile(userStoriesFile, output);
         console.log("Appended new user story to user_stories.txt")
@@ -123,13 +119,6 @@ async function readUserStories() {
                 currentStory.tags = line.split(': ')[1];
             } else if (line.startsWith('Status:')) {
                 currentStory.status = line.split(': ')[1];
-            } else if (line.startsWith('ColorArray:')) {
-                try {
-                    currentStory.colorArray = JSON.parse(line.split(': ')[1]);
-                } catch (e) {
-                    console.error("Could not parse color array", e)
-                    currentStory.colorArray = [];
-                }
             }
         }
            if (currentStory.ID) {
