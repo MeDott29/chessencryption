@@ -7,21 +7,19 @@ const fs = require('node:fs/promises');
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const { appendNewUserStory } = require('./user_story_generator');
 const net = require('net');
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// 1.5 Flash Model for Chat
+// 1.5 Flash Model for Chat (for generating user stories)
 const model1_5 = genAI.getGenerativeModel({
   model: "gemini-1.5-flash",
 });
 
-// 2.0 Flash Experimental Model for single image generation
+// 1.5 Pro Model for single image generation
 const model2_0 = genAI.getGenerativeModel({
-  model: "gemini-1.5-pro",
-  systemInstruction: "The user will provide a user story, you will provide one 64 by 64 pixel image in base64, without any other text",
+    model: "gemini-1.5-pro",
 });
 const generationConfig = {
     temperature: 1,
@@ -159,50 +157,75 @@ async function writeImageDatabase(data) {
         console.error('Error writing to image database file:', error);
     }
 }
-async function run() {
-    const stories = await readUserStories();
-    if (!stories || stories.length === 0) {
-        console.log("No user stories found")
-    }
-    let nextStory = await findNextPendingStory(stories);
-    if (!nextStory) {
-      console.log('No pending user stories found.');
-      // Generate a new user story if none are pending
-      console.log("Generating new user story...")
-      await appendNewUserStory();
-      return;
-    }
-    const userStoryID = nextStory.ID;
-    console.log(`Processing user story ${userStoryID}`)
-    let updatedStories = await updateStoryStatus(stories, userStoryID, "In Progress");
-    await writeUserStories(updatedStories);
-    // Generate a simple color array for the GIF using 1.5-flash model
+async function generateUserStory() {
     const chatSession = model1_5.startChat({
         generationConfig,
         safetySettings,
         history: [],
       });
-    const prompt = `Generate two very small, square images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
-    The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
-    The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
-    The images must be delivered as a base64 strings for GIF frames. No other text is needed.`
+        const prompt = `Generate a single, unique user story, description, and associated tags. The user story should be one sentence, description should be up to two sentences.
+        Provide the user story in the following format, making sure to include the newline characters as shown:
+        User Story: [user story]
+        Description: [description]
+        Tags: [tags]
+        `
     const result = await chatSession.sendMessage(prompt);
-    const base64Strings = result.response.text().split('\n');
-      console.log("GIF Frames:", base64Strings); // added console log
-    // Generate single image using the 2.0-flash-exp model
-    const prompt2_0 = `A low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.`
+    const storyData = result.response.text();
+    console.log("Generated user story data:", storyData)
+    const userStory = storyData.match(/User Story: (.*?)\n/)?.[1] || '';
+    const description = storyData.match(/Description: (.*?)\n/)?.[1] || '';
+    const tags = storyData.match(/Tags: (.*?)$/)?.[1] || '';
+    const stories = await readUserStories();
+    const nextID = stories.length > 0 ? Math.max(...stories.map(s => s.ID)) + 1 : 1;
+    const newStory = {
+        ID: nextID,
+        userStory: userStory,
+        description: description,
+        tags: tags,
+        status: "Pending"
+    };
+    stories.push(newStory);
+    await writeUserStories(stories);
+    console.log("appended new user story to user_stories.txt")
+    return newStory;
+}
+async function generateImage(userStory) {
+    // Generate a single image using the 1.5-pro model
+    const prompt2_0 = `Create a single 64x64 pixel image, in base64 encoding, without any other text, that visually represents the following user story: "${userStory}"`
     const result2_0 = await model2_0.generateContent(prompt2_0);
     const singleBase64 = result2_0.response.text();
-    console.log("Single Image:", singleBase64); // added console log
+     console.log("Generated single image:", singleBase64); // added console log
+    return singleBase64;
+}
+async function run() {
+    const stories = await readUserStories();
+    if (!stories || stories.length === 0) {
+      console.log("No user stories found, generating a new one.");
+        await generateUserStory();
+        return;
+    }
+    let nextStory = await findNextPendingStory(stories);
+    if (!nextStory) {
+      console.log('No pending user stories found.');
+        console.log("Generating new user story...")
+       await generateUserStory();
+       return;
+    }
+    const userStoryID = nextStory.ID;
+    const userStoryText = nextStory.userStory;
+    console.log(`Processing user story ${userStoryID}`)
+    let updatedStories = await updateStoryStatus(stories, userStoryID, "In Progress");
+    await writeUserStories(updatedStories);
+
+     const singleBase64 = await generateImage(userStoryText);
    
     const imageDatabase = await readImageDatabase();
     imageDatabase[userStoryID] = {
-        gifFrames: base64Strings,
         singleImage: singleBase64
     };
     await writeImageDatabase(imageDatabase);
     const updatedImageDatabase = await readImageDatabase();
-        console.log("Updated Image Database:", updatedImageDatabase); // added console log
+    console.log("Updated Image Database:", updatedImageDatabase); // added console log
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
     await writeUserStories(updatedStories);
     const storedImageData = updatedImageDatabase[userStoryID];
@@ -213,7 +236,6 @@ async function run() {
             client.send(JSON.stringify({
                 type:"image",
                 userStoryID: userStoryID,
-                gifFrames: storedImageData.gifFrames,
                 singleImage: storedImageData.singleImage,
                 status: "Done"
             }));
