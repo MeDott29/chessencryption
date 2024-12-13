@@ -13,14 +13,24 @@ socket.addEventListener('message', (event) => {
         const data = JSON.parse(event.data);
         if (data.type === "image") {
             const userStoryDiv = document.getElementById(`user-story-${data.userStoryID}`) || createUserStoryDiv(data.userStoryID);
-            if (data.base64Strings && data.base64Strings.length > 0 ) {
-                const img1 = document.createElement('img')
-                img1.src = 'image/gif;base64,' + data.base64Strings[0];
-                const img2 = document.createElement('img');
-                img2.src = 'image/gif;base64,' + data.base64Strings[1];
-                userStoryDiv.appendChild(img1);
-                userStoryDiv.appendChild(img2);
-           }
+            
+            // Clear existing images
+            userStoryDiv.querySelectorAll('img').forEach(img => img.remove());
+
+            if (data.base64Strings && data.base64Strings.length >= 2) {
+                try {
+                    const img1 = document.createElement('img');
+                    img1.src = 'image/gif;base64,' + data.base64Strings[0];
+                    const img2 = document.createElement('img');
+                    img2.src = 'image/gif;base64,' + data.base64Strings[1];
+                    userStoryDiv.appendChild(img1);
+                    userStoryDiv.appendChild(img2);
+                } catch (error) {
+                    console.error("Error creating or appending images:", error);
+                }
+            } else {
+                console.error("Invalid base64 strings received:", data.base64Strings);
+            }
            userStoryDiv.dataset.status = data.status;
         }
     } catch(err) {
