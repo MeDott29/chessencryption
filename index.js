@@ -43,7 +43,6 @@ const safetySettings = [
     },
   ]
 const userStoriesFile = 'user_stories.txt';
-const imageDatabaseFile = 'image_database.txt';
 // Set up Express app
 const app = express();
 const server = http.createServer(app);
@@ -98,12 +97,12 @@ async function readUserStories() {
                 currentStory.tags = line.split(': ')[1];
             } else if (line.startsWith('Status:')) {
                 currentStory.status = line.split(': ')[1];
-            } else if (line.startsWith('Base64Strings:')) {
+            } else if (line.startsWith('ColorArray:')) {
                 try {
-                    currentStory.base64Strings = JSON.parse(line.split(': ')[1]);
+                    currentStory.colorArray = JSON.parse(line.split(': ')[1]);
                 } catch (e) {
-                    console.error("Could not parse base64 strings", e)
-                    currentStory.base64Strings = [];
+                    console.error("Could not parse color array", e)
+                    currentStory.colorArray = [];
                 }
             }
         }
@@ -143,15 +142,6 @@ async function updateStoryStatus(stories, storyID, newStatus) {
       return story;
     });
 }
-async function addToImageDatabase(userStoryID, base64Strings) {
-  const entry = `user_story_id: ${userStoryID}, base64_strings: ${JSON.stringify(base64Strings)}\n`;
-  try {
-    await fs.appendFile(imageDatabaseFile, entry);
-    console.log('Appended image data to image_database.txt');
-  } catch (err) {
-    console.error('Error writing to image database file:', err);
-  }
-}
 async function run() {
     const stories = await readUserStories();
     if (!stories || stories.length === 0) {
@@ -169,17 +159,16 @@ async function run() {
     console.log(`Processing user story ${userStoryID}`)
     let updatedStories = await updateStoryStatus(stories, userStoryID, "In Progress");
     await writeUserStories(updatedStories);
-    const base64Strings = nextStory.base64Strings;
+    const colorArray = nextStory.colorArray;
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
         await writeUserStories(updatedStories);
-        await addToImageDatabase(userStoryID, base64Strings);
         // Send data to client through web sockets
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({
                 type:"image",
                 userStoryID: userStoryID,
-                base64Strings:base64Strings,
+                colorArray:colorArray,
                 status: "Done"
             }));
           }
@@ -196,26 +185,4 @@ app.get('/user-stories', async (req, res) => {
 });
 app.get('/test-gif', (req, res) => {
     res.sendFile(__dirname + '/public/test_gif.html');
-});
-app.get('/get-all-gif-data', async (req, res) => {
-    try {
-        const data = await fs.readFile(imageDatabaseFile, 'utf-8');
-        const lines = data.trim().split('\n');
-        let allBase64Strings = [];
-        for (const line of lines) {
-            const match = line.match(/base64_strings: (\[.*?\])/);
-            if (match && match[1]) {
-                try {
-                    const base64Strings = JSON.parse(match[1]);
-                    allBase64Strings = allBase64Strings.concat(base64Strings);
-                } catch (e) {
-                    console.error("Could not parse base64 strings", e)
-                }
-            }
-        }
-        res.json({ base64Strings: allBase64Strings });
-    } catch (error) {
-        console.error("Failed to read image database", error);
-        res.status(500).json({ error: "Failed to read image database" });
-    }
 });

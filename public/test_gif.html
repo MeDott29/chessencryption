@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test GIF Display</title>
+    <title>Test Canvas Display</title>
     <style>
         body {
             font-family: sans-serif;
@@ -15,49 +15,52 @@
             margin: 0;
             background-color: #f4f4f4;
         }
-        #gif-container {
+        #canvas-container {
             margin-top: 20px;
         }
-        #gif-container img {
-            max-width: 300px;
+        #color-canvas {
             border: 1px solid #ddd;
             border-radius: 8px;
         }
     </style>
 </head>
 <body>
-    <h1>Test GIF Display</h1>
-    <div id="gif-container">
-        <!-- GIF will be displayed here -->
+    <h1>Test Canvas Display</h1>
+    <div id="canvas-container">
+        <canvas id="color-canvas" width="200" height="200"></canvas>
     </div>
     <script>
-        async function fetchAndDisplayGif() {
+        async function fetchAndDisplayColors() {
             try {
-                const response = await fetch('/get-all-gif-data');
+                const response = await fetch('/user-stories');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                if (data && data.base64Strings && data.base64Strings.length > 0) {
-                    const gifContainer = document.getElementById('gif-container');
-                    // Assuming each base64 string is a complete GIF frame
-                    data.base64Strings.forEach(base64String => {
-                        const gif = document.createElement('img');
-                        gif.src = `image/gif;base64,${base64String}`;
-                        gifContainer.appendChild(gif);
-                    });
+                if (data && data.length > 0 && data[0].colorArray) {
+                    const colorArray = data[0].colorArray;
+                    const canvas = document.getElementById('color-canvas');
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const numColors = colorArray.length;
+                    const rectWidth = width / numColors;
+                    for (let i = 0; i < numColors; i++) {
+                        ctx.fillStyle = colorArray[i];
+                        ctx.fillRect(i * rectWidth, 0, rectWidth, height);
+                    }
                 } else {
-                    console.error("No GIF data found");
-                    const gifContainer = document.getElementById('gif-container');
-                    gifContainer.textContent = "No GIF data found";
+                    console.error("No color data found");
+                    const canvasContainer = document.getElementById('canvas-container');
+                    canvasContainer.textContent = "No color data found";
                 }
             } catch (error) {
-                console.error("Failed to fetch GIF ", error);
-                const gifContainer = document.getElementById('gif-container');
-                gifContainer.textContent = "Failed to fetch GIF data";
+                console.error("Failed to fetch color data", error);
+                const canvasContainer = document.getElementById('canvas-container');
+                canvasContainer.textContent = "Failed to fetch color data";
             }
         }
-        fetchAndDisplayGif();
+        fetchAndDisplayColors();
     </script>
 </body>
 </html>

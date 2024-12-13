@@ -15,22 +15,29 @@ socket.addEventListener('message', (event) => {
         if (data.type === "image") {
             const userStoryDiv = document.getElementById(`user-story-${data.userStoryID}`) || createUserStoryDiv(data.userStoryID, data.userStory, data.description, data.tags);
             
-            // Clear existing images
-            userStoryDiv.querySelectorAll('.image-container').forEach(imgContainer => imgContainer.remove());
+            // Clear existing canvas
+            userStoryDiv.querySelectorAll('canvas').forEach(canvas => canvas.remove());
 
-            if (data.base64Strings && data.base64Strings.length >= 2) {
+            if (data.colorArray && data.colorArray.length > 0) {
                 try {
-                    const imageContainer = document.createElement('div');
-                    imageContainer.classList.add('image-container');
-                    const gif = document.createElement('img');
-                    gif.src = `image/gif;base64,${data.base64Strings.join('')}`;
-                    imageContainer.appendChild(gif);
-                    userStoryDiv.appendChild(imageContainer);
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 200;
+                    canvas.height = 200;
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    const numColors = data.colorArray.length;
+                    const rectWidth = width / numColors;
+                    for (let i = 0; i < numColors; i++) {
+                        ctx.fillStyle = data.colorArray[i];
+                        ctx.fillRect(i * rectWidth, 0, rectWidth, height);
+                    }
+                    userStoryDiv.appendChild(canvas);
                 } catch (error) {
-                    console.error("Error creating or appending images:", error);
+                    console.error("Error creating or appending canvas:", error);
                 }
             } else {
-                console.error("Invalid base64 strings received:", data.base64Strings);
+                console.error("Invalid color array received:", data.colorArray);
             }
            userStoryDiv.dataset.status = data.status;
            const statusDisplay = userStoryDiv.querySelector('.status-display');

@@ -45,9 +45,9 @@ async function generateUserStory() {
         safetySettings,
         history: [],
       });
-    const prompt = `Generate a user story for a GIF animation, including a description of the GIF frame.
+    const prompt = `Generate a user story for a simple color animation, including a description of the animation.
     The user story should follow the format: "As a [user role], I want [a goal], So that [a benefit]".
-    The description should be a detailed description of a single frame of the GIF.
+    The description should be a detailed description of the animation.
     The response should be formatted as a JSON object with the keys "userStory", "description".`
     console.log("generateUserStory prompt:", prompt)
     try {
@@ -68,30 +68,6 @@ async function generateUserStory() {
         return null;
     }
 }
-async function generateBase64FrameData() {
-    const chatSession = model.startChat({
-        generationConfig,
-        safetySettings,
-        history: [],
-      });
-    const prompt = `Generate two very small, square GIF images, for the first GIF frames. Each image should be 20 pixels by 20 pixels.
-        The first image should show a low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.
-        The second image should show the same low-poly triangle rotated slightly clockwise in bright orange (#FFA500) on a dark grey (#333333) background.
-        The images must be delivered as base64 strings for GIF frames, separated by newlines. No other text is needed.`
-    console.log("generateBase64FrameData prompt:", prompt)
-    try {
-        const result = await chatSession.sendMessage(prompt);
-        let responseText = result.response.text();
-        // Remove markdown code fences if present
-        responseText = responseText.replace(/```\n/g, '').replace(/```/g, '');
-        const base64Strings = responseText.split('\n').filter(Boolean);
-        console.log("generateBase64FrameData response:", base64Strings)
-        return base64Strings;
-    } catch (error) {
-        console.error("Failed to generate base64 frame data", error)
-        return null;
-    }
-}
 async function appendNewUserStory() {
     const userStoryData = await generateUserStory();
     if (!userStoryData) {
@@ -99,8 +75,9 @@ async function appendNewUserStory() {
         return;
     }
     const {userStory, description} = userStoryData;
-    const base64Strings = await generateBase64FrameData();
-    if (!userStory || !description || !base64Strings) {
+    // Generate a simple color array
+    const colorArray = ['#FF0000', '#00FF00', '#0000FF'];
+    if (!userStory || !description || !colorArray) {
         console.error("Could not generate all required data for user story")
         return;
     }
@@ -112,14 +89,14 @@ async function appendNewUserStory() {
         description: description,
         tags: "generated",
         status: "Pending",
-        base64Strings: base64Strings
+        colorArray: colorArray
     }
     let output = `ID: ${newStory.ID}\n`;
     output += `User Story: ${newStory.userStory}\n`;
     output += `Description: ${newStory.description}\n`;
     output += `Tags: ${newStory.tags}\n`;
     output += `Status: ${newStory.status}\n`;
-    output += `Base64Strings: ${JSON.stringify(newStory.base64Strings)}\n\n`;
+    output += `ColorArray: ${JSON.stringify(newStory.colorArray)}\n\n`;
     try {
         await fs.appendFile(userStoriesFile, output);
         console.log("Appended new user story to user_stories.txt")
@@ -146,12 +123,12 @@ async function readUserStories() {
                 currentStory.tags = line.split(': ')[1];
             } else if (line.startsWith('Status:')) {
                 currentStory.status = line.split(': ')[1];
-            } else if (line.startsWith('Base64Strings:')) {
+            } else if (line.startsWith('ColorArray:')) {
                 try {
-                    currentStory.base64Strings = JSON.parse(line.split(': ')[1]);
+                    currentStory.colorArray = JSON.parse(line.split(': ')[1]);
                 } catch (e) {
-                    console.error("Could not parse base64 strings", e)
-                    currentStory.base64Strings = [];
+                    console.error("Could not parse color array", e)
+                    currentStory.colorArray = [];
                 }
             }
         }
