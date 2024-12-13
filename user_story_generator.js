@@ -45,9 +45,10 @@ async function generateUserStory() {
         safetySettings,
         history: [],
       });
-    const prompt = `Generate a user story for a simple color animation, including a description of the animation.
+    const prompt = `Generate a user story for a simple animation, including a description of the animation.
     The user story should follow the format: "As a [user role], I want [a goal], So that [a benefit]".
-    The description should be a detailed description of the animation.
+    The animation can be a color animation, a shape animation, or a combination of both.
+    The description should be a detailed description of the animation, including the type of animation, the elements involved, and the colors used.
     The response should be formatted as a JSON object with the keys "userStory", "description".`
     console.log("generateUserStory prompt:", prompt)
     try {
