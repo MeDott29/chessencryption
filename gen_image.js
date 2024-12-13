@@ -188,6 +188,15 @@ async function run() {
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
 
+    const logMemoryUsage = () => {
+        const used = process.memoryUsage();
+        console.log('Memory usage:',
+            Object.entries(used).map(([key, val]) => 
+                `${key}: ${Math.round(val / 1024 / 1024 * 100) / 100} MB`
+            ).join(', ')
+        );
+    };
+
     const chatSession = model.startChat({
         generationConfig,
         history: [{ role: 'user', parts: [{ text: systemPrompt }] }],
@@ -236,6 +245,7 @@ async function run() {
                     row: i + 1,
                     timeTaken: ((messageEndTime - messageStartTime) / 1000).toFixed(2)
                 });
+                logMemoryUsage();
 
                 // Save progress at intervals
                 if (i % SAVE_INTERVAL === 0 || i === IMAGE_HEIGHT - 1) {
