@@ -12,6 +12,15 @@ const path = require('path');
 const { createCanvas, loadImage } = require('canvas'); // Using node-canvas for image manipulation
 require('dotenv').config();
 
+function logToJsonl(data) {
+    const logFile = path.join(__dirname, 'generation_log.jsonl');
+    const logEntry = {
+        timestamp: new Date().toISOString(),
+        ...data
+    };
+    fs.appendFileSync(logFile, JSON.stringify(logEntry) + '\n');
+}
+
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
@@ -160,6 +169,14 @@ Return only the raw base64 PNG data.`;
 
                     let base64String = result.response.text().trim();
                     console.log(`Raw response for row ${i+1} (first 50 chars): "${base64String.substring(0, 50)}..."`);
+                    
+                    // Log the conversation data
+                    logToJsonl({
+                        row: i + 1,
+                        prompt: prompt,
+                        rawResponse: base64String,
+                        timeTaken: ((messageEndTime - messageStartTime) / 1000).toFixed(2)
+                    });
                 
                     // Clean and validate the base64 string
                     base64String = cleanBase64Response(base64String);
@@ -177,6 +194,11 @@ Return only the raw base64 PNG data.`;
                             }
                         } catch (imgError) {
                             console.warn(`Warning: Could not process row ${i+1}: ${imgError.message}`);
+                            logToJsonl({
+                                row: i + 1,
+                                error: imgError.message,
+                                type: 'image_processing_error'
+                            });
                             ctx.fillStyle = 'white';
                             ctx.fillRect(0, i, imageWidth, 1);
                         }
