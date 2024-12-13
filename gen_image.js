@@ -38,25 +38,33 @@ const imageHeight = 256;
 const systemPrompt = `You are an image generator that creates base64 encoded PNG data for single pixel rows.
 Each row must be exactly ${imageWidth} pixels wide and 1 pixel tall.
 Output ONLY the raw base64 string with no formatting, quotes, or additional text.
-Do not include the image/png;base64, prefix.
-The base64 string must represent a valid PNG image with dimensions ${imageWidth}x1 pixels.`;
+Do not include any prefix like 'data:image/png;base64,'.
+The base64 string must represent a valid PNG image with dimensions ${imageWidth}x1 pixels.
+Ensure the output is a complete, valid PNG file encoded in base64.`;
 
 function debugBase64Response(response, rowNum) {
-    console.log(`\nRow ${rowNum} raw response:`, response);
+    console.log(`\nRow ${rowNum} raw response length: ${response.length}`);
     try {
         const decoded = Buffer.from(response, 'base64');
         console.log(`Decoded length: ${decoded.length} bytes`);
-        console.log(`First few bytes:`, [...decoded.slice(0, 8)].map(b => b.toString(16)));
+        console.log(`PNG header check:`, [...decoded.slice(0, 8)].map(b => b.toString(16).padStart(2, '0')).join(' '));
+        return decoded.length > 8 && 
+               decoded[0] === 0x89 && 
+               decoded[1] === 0x50 && // P
+               decoded[2] === 0x4E && // N
+               decoded[3] === 0x47;   // G
     } catch (e) {
         console.log('Failed to decode as base64:', e.message);
+        return false;
     }
 }
 
 function cleanBase64Response(response) {
     // Remove any non-base64 characters and common wrapping text
     let cleaned = response.replace(/^["']|["']$/g, '') // Remove quotes
-                         .replace(/^image\/png;base64,/, '') // Remove data URL prefix
-                         .replace(/[\r\n\s]/g, ''); // Remove whitespace
+                         .replace(/^data:image\/png;base64,/, '') // Remove data URL prefix
+                         .replace(/[\r\n\s]/g, '') // Remove whitespace
+                         .replace(/[^A-Za-z0-9+/=]/g, ''); // Remove any invalid base64 chars
     return cleaned;
 }
 
