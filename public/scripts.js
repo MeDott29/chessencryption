@@ -6,6 +6,7 @@ console.log(`Attempting to connect to WebSocket on port: ${window.location.port}
 
 socket.addEventListener('open', (event) => {
     console.log("Connected to WebSocket");
+    fetchUserStories();
 });
 
 socket.addEventListener('message', (event) => {
@@ -64,3 +65,24 @@ socket.addEventListener('error', (error) => {
 socket.addEventListener('close', (event) => {
     console.log('WebSocket Closed:', event);
 });
+
+async function fetchUserStories() {
+    try {
+        const response = await fetch('/user-stories');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const stories = await response.json();
+        stories.forEach(story => {
+            createUserStoryDiv(story.ID, story.userStory, story.description, story.tags);
+            const userStoryDiv = document.getElementById(`user-story-${story.ID}`);
+            if (userStoryDiv) {
+                userStoryDiv.dataset.status = story.status;
+                const statusDisplay = userStoryDiv.querySelector('.status-display');
+                statusDisplay.textContent = `Status: ${story.status}`;
+            }
+        });
+    } catch (error) {
+        console.error("Failed to fetch user stories:", error);
+    }
+}

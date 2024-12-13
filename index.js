@@ -201,3 +201,8 @@ async function run() {
 setInterval(async () => {
     await run();
 }, 10000); // Run every ten seconds
+
+app.get('/user-stories', async (req, res) => {
+    const stories = await readUserStories();
+    res.json(stories);
+});
