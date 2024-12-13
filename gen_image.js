@@ -159,15 +159,24 @@ Return only the raw base64 PNG data.`;
                     console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
 
                     let base64String = result.response.text().trim();
+                    console.log(`Raw response for row ${i+1} (first 50 chars): "${base64String.substring(0, 50)}..."`);
                 
-                    // Validate base64 string
-                    if (base64String && isValidBase64(base64String)) {
+                    // Clean and validate the base64 string
+                    base64String = cleanBase64Response(base64String);
+                    const isValidPNG = debugBase64Response(base64String, i+1);
+                
+                    if (base64String && isValidPNG) {
                         try {
                             const image = await loadImage(`data:image/png;base64,${base64String}`);
-                            ctx.drawImage(image, 0, i, imageWidth, 1); // Draw just one row
-                            prevRowBase64 = base64String;
+                            if (image.width === imageWidth && image.height === 1) {
+                                ctx.drawImage(image, 0, i, imageWidth, 1);
+                                prevRowBase64 = base64String;
+                                console.log(`Successfully processed row ${i+1}`);
+                            } else {
+                                throw new Error(`Invalid dimensions: ${image.width}x${image.height}`);
+                            }
                         } catch (imgError) {
-                            console.warn(`Warning: Could not process row ${i+1}, using blank row instead`);
+                            console.warn(`Warning: Could not process row ${i+1}: ${imgError.message}`);
                             ctx.fillStyle = 'white';
                             ctx.fillRect(0, i, imageWidth, 1);
                         }
