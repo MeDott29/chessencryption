@@ -20,7 +20,7 @@ const model1_5 = genAI.getGenerativeModel({
 
 // 2.0 Flash Experimental Model for single image generation
 const model2_0 = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-exp",
+  model: "gemini-exp-1206",
   systemInstruction: "The user will provide a user story, you will provide one 64 by 64 pixel image in base64, without any other text",
 });
 const generationConfig = {
