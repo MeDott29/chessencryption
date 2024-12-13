@@ -5,7 +5,7 @@ const {
 } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
-const open = require('open');
+const { default: open } = require('open');
 
 require('dotenv').config();
 
