@@ -191,11 +191,17 @@ async function generateUserStory() {
     return newStory;
 }
 async function generateImage(userStory) {
-    // Generate a single image using the 1.5-pro model
-    const prompt2_0 = `Create a single 64x64 pixel image, in base64 encoding, without any other text, that visually represents the following user story: "${userStory}"`
+    const prompt2_0 = `Create a single 64x64 pixel image, in base64 encoding, without any other text, that visually represents the following user story: "${userStory}". Return ONLY the base64 string without any markdown formatting or additional text.`
     const result2_0 = await model2_0.generateContent(prompt2_0);
-    const singleBase64 = result2_0.response.text();
-     console.log("Generated single image:", singleBase64); // added console log
+    let singleBase64 = result2_0.response.text().trim();
+    
+    // Clean up the response if needed
+    singleBase64 = singleBase64
+        .replace(/^```[\w]*\n|```$/g, '')  // Remove code blocks
+        .replace(/^data:image\/\w+;base64,/, '')  // Remove existing data URI prefix
+        .trim();
+
+    console.log("Generated base64 image data length:", singleBase64.length);
     return singleBase64;
 }
 async function run() {

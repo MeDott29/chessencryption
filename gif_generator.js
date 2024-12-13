@@ -5,36 +5,37 @@ const { Image } = require('canvas');
 
 async function base64ToImage(base64String) {
     try {
-        // Remove any potential data URI prefix and whitespace
-        const base64Data = base64String.replace(/^data:image\/\w+;base64,/, '').replace(/^```|```$/g, '').trim();
+        // Clean up the base64 string more thoroughly
+        let base64Data = base64String
+            .replace(/^data:image\/\w+;base64,/, '')  // Remove data URI prefix
+            .replace(/^```[\w]*\n|```$/g, '')         // Remove code blocks
+            .trim();                                   // Remove whitespace
         
-        // Create a buffer from the base64 string
-        const imageBuffer = Buffer.from(base64Data, 'base64');
-        
-        // Log image buffer size for debugging
-        console.log(`Image buffer size: ${imageBuffer.length} bytes`);
-        
-        // Validate buffer size
-        if (imageBuffer.length > 1024 * 1024) { // 1MB limit
-            console.warn('Image buffer exceeds recommended size, attempting to resize');
-            // Optionally, you could implement image resizing here
+        // Add data URI prefix if it's missing
+        if (!base64Data.startsWith('data:image')) {
+            base64Data = `data:image/png;base64,${base64Data}`;
         }
-        
-        // Use a more robust image loading method with increased timeout and error handling
+
         return new Promise((resolve, reject) => {
             const img = new Image();
+            
+            // Set a timeout to prevent hanging
+            const timeout = setTimeout(() => {
+                reject(new Error('Image loading timed out'));
+            }, 5000);
+
             img.onload = () => {
-                // Clear any potential memory leaks
-                setTimeout(() => resolve(img), 0);
+                clearTimeout(timeout);
+                resolve(img);
             };
+
             img.onerror = (err) => {
+                clearTimeout(timeout);
                 console.error('Image load error:', err);
-                console.error('Base64 data (first 100 chars):', base64Data.substring(0, 100));
                 reject(new Error('Failed to load image'));
             };
             
-            // Ensure we're using a valid data URI
-            img.src = `data:image/png;base64,${base64Data}`;
+            img.src = base64Data;
         });
     } catch (error) {
         console.error('Error converting base64 to image:', error);
