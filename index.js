@@ -8,6 +8,7 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { appendNewUserStory } = require('./user_story_generator');
+const net = require('net');
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -54,10 +55,29 @@ wss.on('connection', ws => {
 });
 
 app.use(express.static('public')); // Serve static files from 'public' folder
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-});
+let PORT = process.env.PORT || 3000;
+
+function isPortInUse(port) {
+    return new Promise((resolve, reject) => {
+      const tester = net.createServer()
+        .once('error', err => (err.code == 'EADDRINUSE' ? resolve(true) : reject(err)))
+        .once('listening', () => tester.close(() => resolve(false)))
+        .listen(port);
+    });
+  }
+  
+  async function startServer() {
+    let portInUse = await isPortInUse(PORT);
+    while (portInUse) {
+      PORT++;
+      portInUse = await isPortInUse(PORT);
+    }
+    server.listen(PORT, () => {
+      console.log(`Server listening on port ${PORT}`);
+    });
+  }
+  
+  startServer();
 // user story and database functionality
 async function readUserStories() {
     try {
