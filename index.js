@@ -188,10 +188,12 @@ async function run() {
     The images must be delivered as a base64 strings for GIF frames. No other text is needed.`
     const result = await chatSession.sendMessage(prompt);
     const base64Strings = result.response.text().split('\n');
+      console.log("GIF Frames:", base64Strings); // added console log
     // Generate single image using the 2.0-flash-exp model
     const prompt2_0 = `A low-poly triangle in bright orange (#FFA500) on a dark grey (#333333) background.`
     const result2_0 = await model2_0.generateContent(prompt2_0);
     const singleBase64 = result2_0.response.text();
+    console.log("Single Image:", singleBase64); // added console log
    
     const imageDatabase = await readImageDatabase();
     imageDatabase[userStoryID] = {
@@ -199,6 +201,8 @@ async function run() {
         singleImage: singleBase64
     };
     await writeImageDatabase(imageDatabase);
+      const updatedImageDatabase = await readImageDatabase();
+        console.log("Updated Image Database:", updatedImageDatabase); // added console log
     updatedStories = await updateStoryStatus(updatedStories, userStoryID, "Done");
     await writeUserStories(updatedStories);
     const updatedImageDatabase = await readImageDatabase();
@@ -206,6 +210,7 @@ async function run() {
         // Send data to client through web sockets
         wss.clients.forEach(client => {
           if (client.readyState === WebSocket.OPEN) {
+              console.log('sending image data to client') //added console log
             client.send(JSON.stringify({
                 type:"image",
                 userStoryID: userStoryID,
@@ -213,6 +218,8 @@ async function run() {
                 singleImage: storedImageData.singleImage,
                 status: "Done"
             }));
+          } else {
+               console.log('Client connection not open') //added console log
           }
         });
 }
