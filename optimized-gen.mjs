@@ -53,8 +53,20 @@ async function updateImagePreview(canvas, previewPath) {
 }
 
 function cleanBase64Response(response) {
-    // Remove any leading/trailing quotes or newlines, and standardize base64 chars
-    return response.trim().replace(/^["']|["']$/g, '').replace(/[^A-Za-z0-9+/=]/g, '');
+    // Remove any non-base64 characters and ensure proper base64 format
+    let cleaned = response.trim()
+        .replace(/^["']|["']$/g, '')  // Remove quotes
+        .replace(/^data:image\/png;base64,/, '')  // Remove data URI prefix
+        .replace(/[\r\n\s]/g, '')  // Remove whitespace
+        .replace(/[^A-Za-z0-9+/=]/g, '');  // Keep only valid base64 chars
+    
+    // Ensure proper base64 padding
+    const padding = cleaned.length % 4;
+    if (padding) {
+        cleaned += '='.repeat(4 - padding);
+    }
+    
+    return cleaned;
 }
 // Function to parse a PNG buffer
 function parsePngBuffer(buffer) {
@@ -79,29 +91,46 @@ async function createWhiteRowImageData() {
 }
 async function processRow(base64String, ctx, y, prevRowBase64) {
     try {
-        const buffer = Buffer.from(base64String, 'base64');
-        let png;
+        // Create a white row as fallback
+        const fallbackImageData = await createWhiteRowImageData();
         
-         try{
-              png = await parsePngBuffer(buffer);
-          } catch (error) {
-              console.warn(`Invalid PNG Data:`, error.message);
-            throw new Error('Invalid PNG data');
-           }
+        if (!base64String) {
+            ctx.putImageData(fallbackImageData, 0, y);
+            return null;
+        }
 
-        // validate dimensions
-        if (png.width !== IMAGE_WIDTH || png.height !== 1){
-            throw new Error(`PNG dimensions invalid. Expected ${IMAGE_WIDTH}x1, got ${png.width}x${png.height}.`);
+        const buffer = Buffer.from(base64String, 'base64');
+        
+        // Early validation of PNG header
+        const pngHeader = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+        if (buffer.slice(0, 8).compare(pngHeader) !== 0) {
+            console.warn('Invalid PNG header');
+            ctx.putImageData(fallbackImageData, 0, y);
+            return null;
+        }
+
+        let png;
+        try {
+            png = await parsePngBuffer(buffer);
+        } catch (error) {
+            console.warn(`PNG parsing error:`, error.message);
+            ctx.putImageData(fallbackImageData, 0, y);
+            return null;
+        }
+
+        if (png.width !== IMAGE_WIDTH || png.height !== 1) {
+            console.warn(`Invalid dimensions: ${png.width}x${png.height}`);
+            ctx.putImageData(fallbackImageData, 0, y);
+            return null;
         }
 
         const imageData = new ImageData(new Uint8ClampedArray(png.data), png.width, png.height);
-
         ctx.putImageData(imageData, 0, y);
         
         if (global.gc) {
             global.gc();
         }
-        
+
         return base64String;
     } catch (error) {
         console.warn(`Warning: Row ${y + 1} processing failed:`, error.message);
@@ -124,13 +153,16 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
 
 async function generateRow(chatSession, rowNum, totalRows, userStory, timeout, previousRow = null) {
     let prompt = `Generate a single row of pixels (${IMAGE_WIDTH}x1) for row ${rowNum} of ${totalRows} of "${userStory}". 
-    You must return ONLY the raw base64 PNG data representing a valid PNG image, with no additional text, markdown, or formatting. 
-    The PNG must have a size of exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.`;
+Return ONLY a base64 encoded PNG image that is exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.
+The response must:
+1. Be ONLY the raw base64 string
+2. NOT include 'data:image/png;base64,' prefix
+3. NOT have any quotes, formatting, or additional text
+4. Represent a valid PNG file with dimensions ${IMAGE_WIDTH}x1`;
     
     if (previousRow) {
-             prompt += ` The previous row data was: ${previousRow}. Make sure that the colors of this row flow smoothly from it. If you cannot, return a white row.`;
+        prompt += ` Use this previous row's colors for continuity: ${previousRow}`;
     }
-    prompt += `Return only the raw base64 PNG data.`;
 
 
     const result = await Promise.race([
