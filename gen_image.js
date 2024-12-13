@@ -42,8 +42,18 @@ The base64 string should represent a valid PNG image.`;
 
 async function run() {
     function isValidBase64(str) {
+        // Check if string exists and has valid base64 characters
+        if (!str || !/^[A-Za-z0-9+/]*={0,2}$/.test(str)) {
+            return false;
+        }
+
         try {
-            return Buffer.from(str, 'base64').toString('base64') === str;
+            // Decode and check if it's actually a PNG
+            const buffer = Buffer.from(str, 'base64');
+            // PNG files start with these bytes
+            const pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+            return buffer.length > 8 && 
+                   pngSignature.every((byte, i) => buffer[i] === byte);
         } catch (err) {
             return false;
         }
