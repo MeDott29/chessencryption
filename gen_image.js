@@ -11,7 +11,6 @@ const MAX_RETRIES = 3;
 const BACKOFF_MULTIPLIER = 2;
 const fs = require('fs');
 const path = require('path');
-const { createCanvas, loadImage } = require('canvas'); // Using node-canvas for image manipulation
 require('dotenv').config();
 
 function logToJsonl(data) {
