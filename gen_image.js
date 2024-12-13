@@ -61,6 +61,7 @@ async function validatePngData(buffer) {
     return pngSignature.every((byte, i) => buffer[i] === byte);
 }
 
+
 async function processRow(base64String, ctx, y, prevRowBase64) {
     try {
         const buffer = Buffer.from(base64String, 'base64');
@@ -116,12 +117,14 @@ async function processRow(base64String, ctx, y, prevRowBase64) {
 
 async function generateRow(chatSession, rowNum, totalRows, userStory, timeout, previousRow = null) {
     let prompt = `Generate a single row of pixels (${IMAGE_WIDTH}x1) for row ${rowNum} of ${totalRows} of "${userStory}". 
-The row should be part of a coherent ${IMAGE_WIDTH}x${totalRows} final image.`;
+    You must return ONLY the raw base64 PNG data representing a valid PNG image, with no additional text, markdown, or formatting. 
+    The PNG must have a size of exactly ${IMAGE_WIDTH} pixels wide and 1 pixel tall.`;
     
     if (previousRow) {
-        prompt += ` The previous row looked like this: ${previousRow}. Try to have the colors of this row flow smoothly from the previous one.`;
+             prompt += ` The previous row data was: ${previousRow}. Make sure that the colors of this row flow smoothly from it. If you cannot, return a white row.`;
     }
     prompt += `Return only the raw base64 PNG data.`;
+
 
     const result = await Promise.race([
         chatSession.sendMessage(prompt),
@@ -181,6 +184,7 @@ Output ONLY the raw base64 string with no formatting, quotes, or additional text
 Do not include any prefix like 'data:image/png;base64,'.
 The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH}x1 pixels.`;
 
+
     const chatSession = model.startChat({
         generationConfig,
         history: [{ role: 'user', parts: [{ text: systemPrompt }] }],
@@ -231,7 +235,15 @@ The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH
                 const timeTaken = (rowEndTime - rowStartTime) / 1000;
                 
                 base64String = cleanBase64Response(base64String);
+                
+               try {
                 prevRowBase64 = await processRow(base64String, ctx, i, prevRowBase64);
+                } catch(error) {
+                   console.warn(`Fatal processing error, row ${i + 1}`, error)
+                   ctx.fillStyle = 'white';
+                   ctx.fillRect(0, i, IMAGE_WIDTH, 1);
+                }
+                
 
                 // Save row data
                 const rowData = {
@@ -256,7 +268,6 @@ The base64 string must represent a valid PNG image with dimensions ${IMAGE_WIDTH
                     console.log(`Progress saved at row ${i + 1}`);
                 }
             }
-
             if (global.gc) {
                 global.gc();
             }
