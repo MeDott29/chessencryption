@@ -108,30 +108,30 @@ async function run() {
 
                     let base64String = result.response.text().trim();
                 
-                // Validate base64 string
-                if (base64String && isValidBase64(base64String)) {
-                    try {
-                        const image = await loadImage(`data:image/png;base64,${base64String}`);
-                        ctx.drawImage(image, 0, i, imageWidth, 1); // Draw just one row
-                        prevRowBase64 = base64String;
-                    } catch (imgError) {
-                        console.warn(`Warning: Could not process row ${i+1}, using blank row instead`);
+                    // Validate base64 string
+                    if (base64String && isValidBase64(base64String)) {
+                        try {
+                            const image = await loadImage(`data:image/png;base64,${base64String}`);
+                            ctx.drawImage(image, 0, i, imageWidth, 1); // Draw just one row
+                            prevRowBase64 = base64String;
+                        } catch (imgError) {
+                            console.warn(`Warning: Could not process row ${i+1}, using blank row instead`);
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, i, imageWidth, 1);
+                        }
+                    } else {
+                        console.warn(`Warning: Invalid base64 for row ${i+1}, using blank row`);
                         ctx.fillStyle = 'white';
                         ctx.fillRect(0, i, imageWidth, 1);
                     }
-                } else {
-                    console.warn(`Warning: Invalid base64 for row ${i+1}, using blank row`);
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, i, imageWidth, 1);
-                }
 
-                // Save progress every 10 rows
-                if (i % 10 === 0 || i === imageHeight - 1) {
-                    const imageBuffer = canvas.toBuffer('image/png');
-                    fs.writeFileSync(filePath, imageBuffer);
-                    console.log(`Progress saved at row ${i+1}`);
+                    // Save progress every 10 rows
+                    if (i % 10 === 0 || i === imageHeight - 1) {
+                        const imageBuffer = canvas.toBuffer('image/png');
+                        fs.writeFileSync(filePath, imageBuffer);
+                        console.log(`Progress saved at row ${i+1}`);
+                    }
                 }
-            } catch (error) {
                 if (error.message === 'Timeout') {
                     console.warn("Timeout occurred - using blank row");
                     ctx.fillStyle = 'white';
