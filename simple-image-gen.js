@@ -62,41 +62,65 @@ async function processImageRow(base64String, ctx, y) {
     try {
         const cleanedBase64 = validateBase64PNG(base64String);
         if (!cleanedBase64) {
-            // Use white row as fallback
+            console.warn(`Invalid PNG data for row ${y}, using fallback white row`);
             const whiteRow = ctx.createImageData(CONFIG.width, 1);
-            whiteRow.data.fill(255);
+            for (let i = 0; i < whiteRow.data.length; i += 4) {
+                whiteRow.data[i] = 255;     // R
+                whiteRow.data[i + 1] = 255; // G
+                whiteRow.data[i + 2] = 255; // B
+                whiteRow.data[i + 3] = 255; // A
+            }
             ctx.putImageData(whiteRow, 0, y);
             return null;
         }
 
-        // Parse PNG data
         return new Promise((resolve, reject) => {
             const png = new PNG({
                 filterType: -1,
-                inputColorType: 6,  // RGBA
-                checkCRC: false     // Disable CRC checking
+                inputColorType: 6,
+                checkCRC: false
             });
 
-            png.parse(Buffer.from(cleanedBase64, 'base64'), (error, data) => {
-                if (error || data.width !== CONFIG.width || data.height !== 1) {
-                    reject(error || new Error('Invalid dimensions'));
+            const buffer = Buffer.from(cleanedBase64, 'base64');
+            
+            png.on('error', (error) => {
+                console.warn(`PNG parsing error for row ${y}:`, error.message);
+                reject(error);
+            });
+
+            png.parse(buffer, (error, data) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                
+                if (!data || data.width !== CONFIG.width || data.height !== 1) {
+                    reject(new Error('Invalid dimensions'));
                     return;
                 }
 
-                const imageData = new ImageData(
-                    new Uint8ClampedArray(data.data),
-                    data.width,
-                    data.height
-                );
-                ctx.putImageData(imageData, 0, y);
-                resolve(cleanedBase64);
+                try {
+                    const imageData = new ImageData(
+                        new Uint8ClampedArray(data.data),
+                        data.width,
+                        data.height
+                    );
+                    ctx.putImageData(imageData, 0, y);
+                    resolve(cleanedBase64);
+                } catch (err) {
+                    reject(err);
+                }
             });
         });
     } catch (error) {
         console.warn(`Row ${y} processing failed:`, error.message);
-        // Use white row as fallback
         const whiteRow = ctx.createImageData(CONFIG.width, 1);
-        whiteRow.data.fill(255);
+        for (let i = 0; i < whiteRow.data.length; i += 4) {
+            whiteRow.data[i] = 255;     // R
+            whiteRow.data[i + 1] = 255; // G
+            whiteRow.data[i + 2] = 255; // B
+            whiteRow.data[i + 3] = 255; // A
+        }
         ctx.putImageData(whiteRow, 0, y);
         return null;
     }
@@ -109,9 +133,15 @@ Return ONLY a valid base64 encoded PNG image string that meets these requirement
 - Image must be exactly ${CONFIG.width}x1 pixels in RGBA format
 - Do not include any markdown formatting
 - Do not include "image" prefix
+- Image must be exactly ${CONFIG.width}x1 pixels in RGBA format
+- PNG must include all required PNG chunks (IHDR, IDAT, IEND)
+- PNG must be properly compressed and encoded
+- Do not include any markdown formatting
+- Do not include "image" prefix
 - Do not include any explanation text
 - The string should only contain valid base64 characters (A-Z, a-z, 0-9, +, /, and = for padding)
-- The output should be a single continuous line of base64 characters`;
+- The output should be a single continuous line of base64 characters
+- The response should contain nothing but the base64 string`;
 
     const result = await Promise.race([
         chatSession.sendMessage(rowPrompt),
@@ -120,7 +150,11 @@ Return ONLY a valid base64 encoded PNG image string that meets these requirement
         )
     ]);
 
-    return result.response.text().trim();
+    const text = result.response.text().trim();
+    if (!text || text.includes('\n') || text.includes(' ')) {
+        throw new Error('Invalid response format');
+    }
+    return text;
 }
 
 // Main function
