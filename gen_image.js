@@ -3,6 +3,8 @@ const {
     HarmCategory,
     HarmBlockThreshold,
 } = require("@google/generative-ai");
+
+const TIMEOUT_SECONDS = 30;
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas'); // Using node-canvas for image manipulation
@@ -28,25 +30,15 @@ const generationConfig = {
     maxOutputTokens: 8192,
 };
 
-const systemPrompt = `You are an expert image generator. Your primary function is to generate a single row of pixels of an image based on user requests, then convert the row of pixels into a compact base64 string format as a direct response. You must **always** respond with ONLY the base64 string of the generated row of image data, and nothing else.
+const systemPrompt = `You are an expert image generator. Generate ONLY a very short base64 string representing a single row of pixels.
 
-**Important Rules:**
-1. **Base64 Output Only:** Output ONLY the base64 encoded image string representing a single row of pixels, no text or other information.
-2. **Compact Output:** Generate the smallest possible base64 string while maintaining image quality.
-3. **Row Size:** Each row must be exactly the requested width in pixels.
-4. **No Errors or Explanations**: Provide an empty string "" if generation fails.
+Rules:
+1. Output ONLY the base64 string - nothing else
+2. Keep the string as SHORT as possible
+3. Each row must be exactly the requested width
+4. Return empty string "" if failed
 
-Remember to keep the base64 string as small as possible while maintaining image quality.
-
-**Example Output:**
-
-For the prompt "Generate a base64 encoded image row of a red square", the response must be similar to (but different):
-\`iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GAAXDIBKE0DHxgljNBAAAAABJRU5ErkJggg==\`
-
-For the prompt "Generate a base64 encoded image row of a blue circle", the response must be similar to (but different):
-\`iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAACiSURBVEhL7dEBCQAADMOl/x+E+l8wZ8jE9Vj8yU1k/c9d3U4qC9A/n90AAAAASUVORK5CYII=\`
-
-**Remember, your responses should be ONLY the base64 string of a single row of pixels, and nothing else.**
+Example of desired length: "iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4"`;
 `;
 
 async function run() {
@@ -86,7 +78,12 @@ async function run() {
             console.log(`Generating row ${i + 1}...`);
             
             const messageStartTime = performance.now();
-            const result = await chatSession.sendMessage(prompt);
+            const result = await Promise.race([
+                chatSession.sendMessage(prompt),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout')), TIMEOUT_SECONDS * 1000)
+                )
+            ]);
             const messageEndTime = performance.now();
             console.log(`Row ${i+1} sent and received. Time taken: ${((messageEndTime - messageStartTime) / 1000).toFixed(2)} seconds`);
 
